@@ -1,0 +1,23 @@
+{
+  "llamaBaseUrl": "http://127.0.0.1:8080",
+  "model": "local-model",
+  "contextWindow": 65536,
+  "reservedOutputTokens": 12288,
+  "maxOutputTokens": 8192,
+  "maxToolOutputChars": 12000,
+  "maxToolIterations": 20,
+  "requestTimeoutSeconds": 3600,
+  "temperature": 0.2,
+  "thresholds": {
+    "garbageCollect": 0.55,
+    "prune": 0.65,
+    "semanticCompact": 0.72,
+    "hardTransfer": 0.8,
+    "failure": 0.9
+  },
+  "security": {
+    "approvalMode": "writes",
+    "allowCommands": true,
+    "commandTimeoutSeconds": 120
+  }
+}

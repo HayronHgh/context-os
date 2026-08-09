@@ -1,0 +1,23 @@
+{
+  "llamaRoot": "..",
+  "executable": "../llama-server.exe",
+  "model": "../models/your-model.gguf",
+  "mmproj": "../models/your-mmproj.gguf",
+  "vision": false,
+  "alias": "local-model",
+  "host": "127.0.0.1",
+  "port": 8080,
+  "contextSize": 65536,
+  "predict": 16384,
+  "parallel": 1,
+  "gpuLayers": "auto",
+  "cacheTypeK": "q8_0",
+  "cacheTypeV": "q8_0",
+  "flashAttention": "on",
+  "fitTargetMiB": 3072,
+  "ctxCheckpoints": 16,
+  "checkpointMinStep": 4096,
+  "cacheRamMiB": 2048,
+  "reasoning": "auto",
+  "reasoningBudget": 4096
+}
