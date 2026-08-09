@@ -31,19 +31,23 @@ Working state 先寫 temporary file 再 rename，降低中斷時留下半份 JSO
 
 目錄：`.qwen-agent/episodes/`
 
-Episode 描述一個已解決問題：task、symptoms、root cause、solution、files、verification 與 result。目前 MVP 只取最近 episodes；相關性排名仍在 roadmap。
+Episode 描述一個已解決問題：task、symptoms、root cause、solution、files、verification 與 result。`listEpisodes(N)` 由最新往回掃描，直到取得最新 N 個 **valid** episodes，因此新的 corrupted files 不會遮蔽較舊的有效記憶。相關性排名延後到後續版本。
 
 ## Repository knowledge
 
 檔案：`.qwen-agent/repo-map.json`
 
-自動產生的 file metadata 與近似 symbols。它是 retrieval aid，不是 source of truth，應重新生成而非 commit。
+自動產生的 file metadata 與近似 symbols。它是 retrieval aid，不是 source of truth，應重新生成而非 commit。Invalid JSON 會被視為 cache miss 並重建；它與 corrupted `state.json` 不同，不會阻止 recovery。
 
 ## Tool artifacts
 
 目錄：`.qwen-agent/artifacts/`
 
-保存太大、不適合放進 prompt 的完整 command、test、grep 或 file output。每個文字 artifact 都有 JSON metadata。
+保存超過 `artifactPersistenceChars` 的 exact command、test、grep、file 或其他 tool evidence。Persistence 與 prompt rendering 分離：中型結果維持完整 active representation，大型結果則使用 bounded preview。
+
+每個文字 artifact 都有 JSON metadata，包含 ID、建立時間、tool、arguments、relative file、characters、bytes 與 SHA-256。`read_artifact` 依 ID 最多取回 500 行、驗證 integrity，而且不接受模型提供的 filesystem path。最近 artifact IDs 會加入重建的 system prompt 與 `read_working_state`，conversation reset 後仍可找到 recovery source。
+
+與 episodes 相同，artifact metadata listing 會略過 corrupted entry，直到收集要求數量的 valid records。Exact artifact read 遇到內容遺失或 hash mismatch 時會 fail loud。
 
 ## Session events
 

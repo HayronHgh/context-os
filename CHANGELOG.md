@@ -4,6 +4,22 @@
 
 All notable changes to this project will be documented here.
 
+## [0.1.2] - 2026-08-09
+
+### Durability and core invariant freeze
+
+- Persist medium and large tool evidence independently of prompt rendering
+- Add machine-checkable internal recovery metadata and a model serialization boundary
+- Gate 55% stale-output compression and 65% exchange eviction on artifact recoverability
+- Add the twelfth runtime tool, `read_artifact`, with bounded ID-only retrieval
+- Record artifact characters, bytes, SHA-256, tool, arguments, and creation metadata
+- Preserve artifact recovery references through pruning, State Transfer, reset, and working-state reads
+- Define `listEpisodes(N)` as the latest N valid episodes
+- Add artifact/compression/eviction/blocked-eviction observability counters
+- Reject invalid durability threshold ordering at startup
+- Expand the core invariant suite from 22 to 35 tests
+- Freeze the deterministic Phase 1/2 baseline; reserve adaptive semantic planning for v0.2.0
+
 ## [0.1.1] - 2026-08-09
 
 ### Correctness hardening

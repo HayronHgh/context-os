@@ -23,17 +23,17 @@ That breaks down during long coding tasks. Test logs, repeated file reads, stale
 ContextOS uses a different model:
 
 ```text
-Repository       = Source of truth
-Persistent State = Long-term memory
-Prompt Context   = Materialized working view
-KV Cache         = Compute optimization
+Repository       = Mutable source of truth
+Artifact         = Durable tool evidence
+State Transfer   = Derived continuation state
+Prompt Context   = Disposable working view
 ```
 
 The goal is simple: a conversation may be compacted or reset without killing the task.
 
 ## Status
 
-**Experimental · Phase 1/2 research MVP · Windows-first**
+**Experimental · v0.1.2 Phase 1/2 core freeze · Windows-first**
 
 Tested with:
 
@@ -41,6 +41,7 @@ Tested with:
 - Qwen3.6-35B-A3B GGUF
 - Windows 11, Node.js 24, NVIDIA CUDA
 - 64K active context, 8K agent output, 4K reasoning budget
+- v0.1.2 `read_file -> artifact -> read_artifact` end-to-end recovery path
 
 The runtime is not tied to a specific model name, but the backend must return OpenAI-style chat messages and tool calls. Other models and servers are not yet part of the test matrix.
 
@@ -51,10 +52,12 @@ The runtime is not tied to a specific model name, but the backend must return Op
 - Structured episodic memory
 - Repository file/symbol map
 - Tool output externalization into durable artifacts
-- Tool-schema-aware, five-stage context budget and compaction policy
+- Recovery-gated tool-output compression and exchange eviction
+- Bounded artifact retrieval with SHA-256 integrity checking
+- Tool-schema-aware, five-level context pressure policy
 - Schema-validated Coding State Transfer instead of generic summaries
 - OpenAI-compatible tool-calling loop
-- Real-path-aware project-root containment for file tools
+- Real-path-aware project-root containment for file and artifact tools
 - Approval prompts for writes, edits, and shell commands
 - Destructive-command guardrails
 - Windows start, stop, diagnostics, setup, and resumable model download scripts
@@ -145,15 +148,15 @@ Stop the managed server with `03_stop_server.bat`.
 
 ## Tools
 
-The model can request 11 runtime-managed tools:
+The model can request 12 runtime-managed tools:
 
 ```text
 read_file             file_glob_search
 grep_search           write_file
 edit_file             run_command
 build_repo_map        read_working_state
-update_working_state  save_episode
-get_datetime
+read_artifact         update_working_state
+save_episode          get_datetime
 ```
 
 File writes, edits, and shell commands require approval by default.
@@ -181,7 +184,7 @@ Each target repository receives:
 | `artifacts/` | Full tool output | No |
 | `sessions/` | Conversation/tool event log | No |
 
-## Context policy
+## Context pressure policy
 
 Input budget is `contextWindow - reservedOutputTokens`. Utilization includes messages, the complete tool-definition payload, `tool_choice`, and a configurable fixed chat-template safety margin.
 
@@ -193,7 +196,9 @@ Input budget is `contextWindow - reservedOutputTokens`. Utilization includes mes
 | 80% | Force transfer and retain only the latest user work window |
 | 90% | Stop instead of silently losing state |
 
-Full tool output remains available in `.qwen-agent/artifacts/` after its prompt representation is shortened.
+ContextOS never destructively compresses tool evidence at 55%, or evicts a complete tool exchange at 65%, unless every affected result has a durable artifact recovery path. Non-durable evidence stays in context and the runtime records the blocked eviction. Semantic and hard State Transfer retain their v0.1.1 deterministic behavior.
+
+Tool results above `artifactPersistenceChars` are persisted independently of prompt rendering. Large prompt representations are bounded by `maxToolOutputChars`; exact content remains available through `read_artifact`.
 
 ## Security
 
@@ -230,15 +235,13 @@ The project treats context lifecycle as a first-class system problem: tool artif
 
 ## Roadmap
 
-- Metrics and a Context Recovery Benchmark
-- Tokenizer-exact near-threshold accounting and estimator calibration
-- Session replay and state diffs
-- tree-sitter and LSP repository intelligence
-- SQLite FTS5/BM25 retrieval
-- Optional semantic memory retrieval
-- Streaming responses
-- Stronger isolation options
-- Clean-context investigator/architect/reviewer agents
+- **v0.1.2:** deterministic durability and Phase 1/2 core freeze
+- **v0.2.0:** Adaptive Semantic Context Planning research and threshold/semantic/hybrid benchmark
+- **v0.3.0:** tree-sitter, LSP, Git, and repository graph intelligence
+- **v0.4.0:** SQLite FTS5/BM25, graph retrieval, and optional semantic fallback
+- **v0.5.0:** clean-context investigator/architect/reviewer think tank
+
+After v0.1.2, the 0.1.x line accepts only critical bugs, security fixes, regressions, and documentation corrections. New memory architecture, context policy, repository intelligence, agents, and retrieval engines belong to 0.2+.
 
 ## Documentation
 

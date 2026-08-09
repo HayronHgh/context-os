@@ -47,7 +47,9 @@ export function deepMerge(base, override) {
 
 export function truncateMiddle(text, maximum, marker = "\n...[middle omitted]...\n") {
   const value = String(text ?? "");
+  if (maximum <= 0) return "";
   if (value.length <= maximum) return value;
+  if (marker.length >= maximum) return marker.slice(0, maximum);
   const remaining = maximum - marker.length;
   const head = Math.ceil(remaining * 0.6);
   return `${value.slice(0, head)}${marker}${value.slice(-(remaining - head))}`;

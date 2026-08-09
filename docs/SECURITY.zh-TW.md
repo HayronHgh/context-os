@@ -20,6 +20,10 @@ File path 會先通過 lexical project-root containment，再把每個已存在�
 
 這個 containment 只適用 ContextOS file tools，不會限制已核准 shell command 內的任意路徑。
 
+### Artifact tool
+
+`read_artifact` 只接受 generated artifact ID，不接受 filesystem path。Store 會拒絕 artifact-directory junction escape、將 artifact file 限制在 storage 內、每次最多讀取 500 行，並在回傳前驗證 SHA-256。這些檢查可發現意外或簡單的 on-disk tampering，但不是用來抵抗擁有目前使用者 filesystem 權限之攻擊者的 authenticated signature。
+
 ### Shell commands
 
 `run_command` 透過 host shell，以目前使用者權限執行。Runtime 會：

@@ -79,10 +79,21 @@ agent.json model == server.json alias
 64K server context
 12K reserved output
 512-token 固定 prompt 安全餘量
+800-character artifact persistence threshold
+800-character stale tool compression threshold
+500-character stale tool preview
 每次模型呼叫最多 8K completion
 4K server reasoning budget
 每個 user turn 最多 20 次 tool iterations
 ```
+
+必須維持以下啟動 invariant：
+
+```text
+artifactPersistenceChars <= staleToolCompressionChars <= maxToolOutputChars
+```
+
+Durability 順序錯誤時 Runtime 會拒絕啟動，不允許 evidence 在持久化前就變成可 prune。
 
 ## 5. 診斷與啟動
 
@@ -145,6 +156,8 @@ node .\src\index.js --project C:\Projects\my-app --prompt "只分析失敗測試
 - 編輯 `.qwen-agent/project.md` 記錄持久專案知識。
 - 已解決且驗證的問題可保存成 episode。
 - 大型輸出保存到 `.qwen-agent/artifacts/`。
+- 超過 `artifactPersistenceChars` 的中型輸出也會持久化，即使其完整文字仍留在 active context。
+- 模型以 artifact ID 呼叫 `read_artifact` 做 bounded recovery，不會提供 artifact path。
 - `/new` 清除 conversation 但保留持久狀態。
 - `/compact` 強制執行 structured state transfer。
 
@@ -206,4 +219,4 @@ node .\src\index.js --project C:\Projects\my-app --prompt "只分析失敗測試
 node --test
 ```
 
-22 個 invariant tests 涵蓋 tool-schema budgeting、不同 compaction thresholds、tool-call boundaries、經驗證的 state transfer 與 fail-loud retry、symlink/junction containment、memory corruption 行為、artifact retention 與 destructive-command denial。只有 host 拒絕建立 file symlink 時才會跳過該項測試。
+35 個 invariant tests 涵蓋 durability config、小／中／大型 evidence、exact artifact recovery 與 integrity、具有 recovery gate 的 GC/exchange eviction、model serialization、episode robustness、tool-schema budgeting、deterministic pressure 行為、state-transfer validation、symlink/junction containment、memory corruption 與 destructive-command denial。只有 host 拒絕建立 file symlink 時才會跳過該項測試。

@@ -19,21 +19,40 @@ estimated input = messages + tool schemas + tool_choice + fixed prompt overhead
 
 預設 64K profile 保留 12K output，留下約 53K estimated input budget。
 
-## 階段
+## Context pressure levels
 
 | 使用率 | 階段 | 行為 |
 | ---: | --- | --- |
-| 55% | Garbage collection | 縮短過期的大型 tool messages |
-| 65% | Pruning | 將完整的舊 assistant-tool/result exchange 換成有上限的 marker |
+| 55% | Garbage collection | 縮短過期的大型 **durable** tool messages |
+| 65% | Pruning | 將完全可恢復的舊 assistant-tool/result exchange 換成 recovery marker |
 | 72% | Semantic compaction | 產生 Coding State Transfer，保留多個最近 user turns |
 | 80% | Hard transfer | 產生 transfer，只保留最新 user work window |
 | 90% | Failure | 停止，而非靜默丟失必要狀態 |
 
 ## Artifact 外部化
 
-超過 `maxToolOutputChars` 的工具結果會寫入 `.qwen-agent/artifacts/`。Prompt 只收到 artifact path、說明與有上限的 head/tail preview。
+Artifact persistence 與 prompt rendering 使用不同門檻：
+
+```text
+chars <= artifactPersistenceChars
+  context-only；禁止 deterministic tool-evidence eviction
+
+artifactPersistenceChars < chars <= maxToolOutputChars
+  exact artifact + 完整 active prompt representation
+
+chars > maxToolOutputChars
+  exact artifact + bounded prompt representation
+```
+
+啟動 invariant `artifactPersistenceChars <= staleToolCompressionChars` 保證 output 不會在建立 recovery artifact 前就符合 55% destructive compression 資格。Artifact metadata 包含 ID、建立時間、tool、arguments、file、character count、byte count 與 SHA-256。
 
 這既保留可稽核性，也避免單一 compiler/test log 主導後續 prompt。
+
+## Durability gates
+
+Internal tool message 帶有 `context_os` metadata。55% 只有 metadata 能證明 artifact recovery path 時才可縮短結果；65% 則必須所有預期 results 都存在且 durable，才能移除整組 assistant tool-call/result。Recovery marker 會保留 tool name 與 artifact ID。
+
+`context_os` 只供 Runtime 使用；正常 request 到 llama.cpp 前，`serializeMessageForModel()` 會移除它。Durable history 進入 State Transfer 時，recovery references 會明確 materialize 到 compaction transcript 與 `artifacts` 欄位。
 
 ## Turn-safe pruning
 
@@ -55,12 +74,19 @@ Compactor 被要求回傳包含以下欄位的 JSON：
   "tests": [],
   "errors": [],
   "rejectedApproaches": [],
+  "artifacts": [],
   "currentState": "",
   "nextActions": []
 }
 ```
 
 Runtime 會驗證所有必要欄位與型別。無效輸出會重試一次；第二次仍無效時，compaction 會失敗且不取代原 conversation。有效結果會以**衍生 continuation state**插回 context，也會複製到持久 working state；可變事實仍必須以 repository 與 tool evidence 核對。
+
+`/compact` 保持 v0.1.1 語義：`force=true` 要求 hard transfer。v0.1.2 不在這條路徑加入 semantic policy decision。
+
+## Observability
+
+Context report 包含累計 `artifactsCreated`、`artifactCharsPersisted`，以及每次 preparation 的 `toolOutputsCompressed`、`toolExchangesEvicted`、`nonDurableEvictionsBlocked`。這些是 v0.2.0 threshold／semantic／hybrid benchmark 的 groundwork，不是 adaptive planner。
 
 ## 為什麼不用 FIFO context shift？
 
