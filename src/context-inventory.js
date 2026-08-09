@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   CONTEXT_UNIT_KINDS,
   ContextUnitIdFactory,
@@ -75,17 +76,59 @@ function sessionPrefix(value) {
   return normalized || "session";
 }
 
+function canonicalize(value) {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.keys(value).sort().map((key) => [key, canonicalize(value[key])])
+  );
+}
+
+function sha256(value) {
+  return createHash("sha256").update(value, "utf8").digest("hex");
+}
+
+export function fingerprintContextUnits(units) {
+  const canonical = units.map((unit, position) => ({
+    position,
+    id: unit.id,
+    kind: unit.kind,
+    source: canonicalize(unit.source),
+    authority: unit.authority,
+    taskId: unit.taskId,
+    recoverability: unit.recoverability,
+    recoveryRef: canonicalize(unit.recoveryRef),
+    protectedReasons: [...unit.protectedReasons].sort(),
+    dependencies: [...unit.dependencies]
+      .map(({ unitId, relation }) => ({ unitId, relation }))
+      .sort((left, right) => {
+        const leftKey = `${left.unitId}:${left.relation}`;
+        const rightKey = `${right.unitId}:${right.relation}`;
+        return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
+      }),
+    tokenCost: unit.tokenCost,
+    lifecycle: unit.lifecycle,
+    contentDigest: `sha256:${sha256(unit.content)}`
+  }));
+  return `sha256:${sha256(JSON.stringify(canonical))}`;
+}
+
 export class ContextInventory {
   constructor({ sessionId = "session", now = () => new Date() } = {}) {
     this.now = now;
-    this.idFactory = new ContextUnitIdFactory(sessionPrefix(sessionId));
+    this.sessionPrefix = sessionPrefix(sessionId);
+    this.idFactory = new ContextUnitIdFactory(this.sessionPrefix);
     this.units = new Map();
+    this.activeOrder = [];
   }
 
   register(input) {
+    const match = new RegExp(`^cu_${this.sessionPrefix}_(\\d+)$`).exec(String(input?.id ?? ""));
+    if (match) this.idFactory.sequence = Math.max(this.idFactory.sequence, Number(match[1]));
     const unit = createContextUnit(input, { idFactory: this.idFactory, now: this.now });
     if (this.units.has(unit.id)) throw new Error(`Duplicate Context Unit ID: ${unit.id}`);
     this.units.set(unit.id, unit);
+    if (unit.lifecycle === "ACTIVE") this.activeOrder.push(unit.id);
     return structuredClone(unit);
   }
 
@@ -173,6 +216,7 @@ export class ContextInventory {
         lifecycle: unit.recoverability === "none" ? "EVICTED" : "EXTERNALIZED"
       });
     }
+    this.activeOrder = [...active];
     return this.snapshot();
   }
 
@@ -194,8 +238,17 @@ export class ContextInventory {
   }
 
   snapshot({ pressure = null, task = null, includeInactive = false, includeContent = false } = {}) {
-    const selected = [...this.units.values()].filter((unit) => includeInactive || unit.lifecycle === "ACTIVE");
-    const units = selected.map((unit) => ({
+    const orderedActive = this.activeOrder
+      .map((id) => this.units.get(id))
+      .filter((unit) => unit?.lifecycle === "ACTIVE");
+    const activeIds = new Set(orderedActive.map((unit) => unit.id));
+    const remaining = [...this.units.values()].filter((unit) => !activeIds.has(unit.id));
+    const selected = includeInactive
+      ? [...orderedActive, ...remaining]
+      : [...orderedActive, ...remaining.filter((unit) => unit.lifecycle === "ACTIVE")];
+    const fingerprint = fingerprintContextUnits(selected);
+    const units = selected.map((unit, position) => ({
+      position,
       id: unit.id,
       kind: unit.kind,
       tokens: unit.tokenCost,
@@ -211,6 +264,10 @@ export class ContextInventory {
       ...(includeContent ? { content: unit.content } : {})
     }));
     return {
+      inventory: {
+        id: `inv_${this.sessionPrefix}_${fingerprint.slice("sha256:".length, "sha256:".length + 16)}`,
+        fingerprint
+      },
       pressure: pressure ? structuredClone(pressure) : null,
       task: task ? structuredClone(task) : null,
       stats: {

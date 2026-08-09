@@ -1,0 +1,92 @@
+{
+  "sessionId": "fixture",
+  "units": [
+    {
+      "id": "cu_fixture_000001",
+      "kind": "USER_REQUIREMENT",
+      "content": "Do not change the public API.",
+      "source": {
+        "type": "message",
+        "role": "user"
+      },
+      "authority": "USER",
+      "createdAt": "2026-08-09T00:00:00.000Z",
+      "taskId": "fixture-task",
+      "recoverability": "none",
+      "recoveryRef": null,
+      "protectedReasons": [
+        "EXPLICIT_USER_CONSTRAINT"
+      ],
+      "dependencies": [],
+      "tokenCost": 12,
+      "lifecycle": "ACTIVE"
+    },
+    {
+      "id": "cu_fixture_000002",
+      "kind": "TOOL_EVIDENCE",
+      "content": "Concurrent refresh reproduced duplicate success in 7 of 10 runs.",
+      "source": {
+        "type": "tool",
+        "name": "run_command"
+      },
+      "authority": "EVIDENCE",
+      "createdAt": "2026-08-09T00:01:00.000Z",
+      "taskId": "fixture-task",
+      "recoverability": "artifact",
+      "recoveryRef": {
+        "artifactId": "fixture-artifact-1",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "protectedReasons": [],
+      "dependencies": [],
+      "tokenCost": 600,
+      "lifecycle": "ACTIVE"
+    },
+    {
+      "id": "cu_fixture_000003",
+      "kind": "DECISION",
+      "content": "Reproduce the failure before proposing a fix.",
+      "source": {
+        "type": "runtime"
+      },
+      "authority": "DERIVED",
+      "createdAt": "2026-08-09T00:02:00.000Z",
+      "taskId": "fixture-task",
+      "recoverability": "memory",
+      "recoveryRef": null,
+      "protectedReasons": [
+        "ACTIVE_DECISION"
+      ],
+      "dependencies": [
+        {
+          "unitId": "cu_fixture_000001",
+          "relation": "depends_on"
+        }
+      ],
+      "tokenCost": 36,
+      "lifecycle": "ACTIVE"
+    },
+    {
+      "id": "cu_fixture_000004",
+      "kind": "HYPOTHESIS",
+      "content": "A refresh race may bypass the in-flight request guard.",
+      "source": {
+        "type": "model"
+      },
+      "authority": "SPECULATIVE",
+      "createdAt": "2026-08-09T00:03:00.000Z",
+      "taskId": "fixture-task",
+      "recoverability": "none",
+      "recoveryRef": null,
+      "protectedReasons": [],
+      "dependencies": [
+        {
+          "unitId": "cu_fixture_000002",
+          "relation": "supports"
+        }
+      ],
+      "tokenCost": 80,
+      "lifecycle": "ACTIVE"
+    }
+  ]
+}

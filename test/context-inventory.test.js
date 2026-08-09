@@ -73,6 +73,26 @@ test("rebuild reserves existing sequences before assigning new IDs", () => {
   assert.equal(existing.context_os.contextUnitId, "cu_reserve_000127");
 });
 
+test("manual registration reserves its sequence before generated IDs", () => {
+  const inventory = new ContextInventory({ sessionId: "manual", now: fixedNow });
+  inventory.register({
+    id: "cu_manual_000127",
+    kind: "USER_CONTEXT",
+    content: "existing",
+    source: { type: "fixture" },
+    authority: "USER",
+    recoverability: "none"
+  });
+  const generated = inventory.register({
+    kind: "REASONING",
+    content: "new",
+    source: { type: "fixture" },
+    authority: "SPECULATIVE",
+    recoverability: "none"
+  });
+  assert.equal(generated.id, "cu_manual_000128");
+});
+
 test("latest user protection is runtime-owned and authority remains independent", () => {
   const inventory = new ContextInventory({ sessionId: "authority", now: fixedNow });
   const messages = [
