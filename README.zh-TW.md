@@ -23,17 +23,17 @@ conversation history = memory
 ContextOS 採用不同模型：
 
 ```text
-Repository       = Source of truth
-Persistent State = 長期記憶
-Prompt Context   = 具體化的工作視圖
-KV Cache         = 計算加速快取
+Repository       = 可變動的 source of truth
+Artifact         = 持久 tool evidence
+State Transfer   = 衍生 continuation state
+Prompt Context   = 可拋棄的工作視圖
 ```
 
 目標很簡單：conversation 可以被壓縮或重設，但任務不能因此死亡。
 
 ## 目前狀態
 
-**Experimental · Phase 1/2 Research MVP · Windows-first**
+**Experimental · v0.1.2 Phase 1/2 Core Freeze · Windows-first**
 
 已驗證環境：
 
@@ -41,6 +41,7 @@ KV Cache         = 計算加速快取
 - Qwen3.6-35B-A3B GGUF
 - Windows 11、Node.js 24、NVIDIA CUDA
 - 64K active context、8K Agent output、4K reasoning budget
+- v0.1.2 `read_file → artifact → read_artifact` 端到端 recovery path
 
 Runtime 沒有綁死特定模型名稱，但 backend 必須回傳 OpenAI-style chat messages 與 tool calls。其他模型與 server 尚未納入正式測試矩陣。
 
@@ -51,10 +52,12 @@ Runtime 沒有綁死特定模型名稱，但 backend 必須回傳 OpenAI-style c
 - 結構化 episodic memory
 - Repository file/symbol map
 - Tool output artifact 外部化
-- 將 tool schema 納入預算的五段式 context budget 與壓縮策略
+- 具有 recovery gate 的 tool-output 壓縮與 exchange eviction
+- 有範圍限制且驗證 SHA-256 的 artifact retrieval
+- 將 tool schema 納入預算的五級 context pressure 策略
 - 使用經 schema 驗證的 Coding State Transfer，而不是普通摘要
 - OpenAI-compatible tool-calling loop
-- File tools 依 real path 檢查的 project-root 路徑限制
+- File 與 artifact tools 依 real path 檢查的 project-root 路徑限制
 - 寫檔、編輯與 shell command 人工確認
 - 破壞性命令 guardrails
 - Windows setup、啟停、診斷與可續傳模型下載
@@ -145,15 +148,15 @@ config/server.json
 
 ## 工具
 
-模型可要求 11 個由 Runtime 管理的工具：
+模型可要求 12 個由 Runtime 管理的工具：
 
 ```text
 read_file             file_glob_search
 grep_search           write_file
 edit_file             run_command
 build_repo_map        read_working_state
-update_working_state  save_episode
-get_datetime
+read_artifact         update_working_state
+save_episode          get_datetime
 ```
 
 寫檔、編輯與 shell command 預設需要人工同意。
@@ -181,7 +184,7 @@ get_datetime
 | `artifacts/` | 完整工具輸出 | 否 |
 | `sessions/` | Conversation/tool event log | 否 |
 
-## Context 策略
+## Context pressure 策略
 
 有效 input budget 為 `contextWindow - reservedOutputTokens`。使用率會計入 messages、完整 tool definitions、`tool_choice`，以及可設定的 chat-template 固定安全餘量。
 
@@ -193,7 +196,9 @@ get_datetime
 | 80% | 強制 transfer，只保留最新 user work window |
 | 90% | 停止，避免靜默遺失狀態 |
 
-即使 prompt 中的工具結果被縮短，完整輸出仍保留在 `.qwen-agent/artifacts/`。
+ContextOS 在 55% 不會壓縮沒有 durable artifact 的 tool evidence，在 65% 也不會移除未完整具備 recovery path 的 tool exchange。Non-durable evidence 會留在 context，Runtime 並記錄被阻止的 eviction。Semantic 與 hard State Transfer 保持 v0.1.1 的 deterministic 行為。
+
+超過 `artifactPersistenceChars` 的結果會獨立於 prompt rendering 持久化。大型 prompt representation 受 `maxToolOutputChars` 限制，精確內容可透過 `read_artifact` 取回。
 
 ## 安全
 
@@ -230,15 +235,13 @@ ContextOS 不打算成為完整 IDE，也不是另一個通用 coding assistant�
 
 ## Roadmap
 
-- Metrics 與 Context Recovery Benchmark
-- 接近門檻時的 tokenizer 精確計數與 estimator calibration
-- Session replay 與 state diff
-- tree-sitter/LSP repository intelligence
-- SQLite FTS5/BM25 retrieval
-- 選用 semantic memory retrieval
-- Streaming responses
-- 更強隔離方案
-- 乾淨 context 的 Investigator／Architect／Reviewer
+- **v0.1.2：**deterministic durability 與 Phase 1/2 core freeze
+- **v0.2.0：**Adaptive Semantic Context Planning 研究，以及 threshold／semantic／hybrid benchmark
+- **v0.3.0：**tree-sitter、LSP、Git 與 repository graph intelligence
+- **v0.4.0：**SQLite FTS5/BM25、graph retrieval 與選用 semantic fallback
+- **v0.5.0：**乾淨 context 的 Investigator／Architect／Reviewer think tank
+
+v0.1.2 後，0.1.x 只接受 critical bug、security fix、regression 與 documentation correction。新的 memory architecture、context policy、repository intelligence、agents 與 retrieval engine 全部進入 0.2+。
 
 ## 文件
 

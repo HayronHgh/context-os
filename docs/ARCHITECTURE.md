@@ -7,13 +7,40 @@
 ContextOS treats prompt context as a materialized working view, not as the database of an agent.
 
 ```text
-Repository       = Source of truth
-Persistent State = Durable task and project memory
-Prompt Context   = Rebuildable working view
-KV Cache         = Compute optimization
+Repository       = Mutable source of truth
+Artifact         = Durable tool evidence
+State Transfer   = Derived continuation state
+Prompt Context   = Disposable working view
 ```
 
 This separation allows the runtime to compact or reset a conversation without treating that event as task failure.
+
+## Frozen core invariants
+
+| ID | Invariant |
+| --- | --- |
+| I1 | The repository is the mutable source of truth. |
+| I2 | Persistent state survives conversation reset. |
+| I3 | State Transfer is derived state, never source of truth. |
+| I4 | Deterministic tool-evidence eviction requires a durable recovery path. |
+| I5 | Invalid compaction cannot replace valid history. |
+| I6 | File and artifact tools cannot escape the selected project root. |
+| I7 | Context pressure cannot silently exceed the safety envelope. |
+| I8 | Corrupted auxiliary memory cannot hide unrelated valid memory. |
+
+## Durability model
+
+```mermaid
+flowchart TD
+    T["Tool evidence"] --> D{"Durable artifact?"}
+    D -->|"No"| P["Protected from 55% compression and 65% exchange eviction"]
+    D -->|"Yes"| A["Full active representation"]
+    A --> B["Bounded representation + artifact ID"]
+    B --> E["Evicted representation + recovery references"]
+    E --> R["read_artifact"]
+```
+
+Persistence and rendering are independent. Results at or below `artifactPersistenceChars` may remain context-only. Larger results receive an exact artifact; results above `maxToolOutputChars` also receive a bounded prompt representation. A complete tool exchange is eligible for deterministic eviction only when all its results are recoverable.
 
 ## Components
 
@@ -47,6 +74,20 @@ flowchart TD
 - Refreshes context after memory or repository-map updates.
 - Externalizes oversized tool output.
 - Persists messages, tool activity, usage, and compaction reports.
+- Maintains cumulative artifact durability metrics.
+
+### Tool evidence manager (`src/tool-evidence.js`)
+
+- Prepares a canonical full tool-result representation.
+- Persists medium and large evidence independently of prompt size.
+- Renders full or bounded model-visible representations.
+- Adds machine-checkable `context_os` recovery metadata to internal messages.
+
+### Model serialization boundary (`src/context-messages.js`)
+
+- Converts internal context units into OpenAI-compatible messages.
+- Removes `context_os` and future runtime-only policy metadata.
+- Preserves only protocol fields required by the local model server.
 
 ### Context manager (`src/context-manager.js`)
 
@@ -54,6 +95,8 @@ flowchart TD
 - Compresses stale output, then prunes complete old tool exchanges while keeping protocol structure intact.
 - Selects complete user-turn boundaries for compaction.
 - Inserts schema-validated, derived Coding State Transfer into rebuilt context.
+- Gates 55% compression and 65% exchange eviction on artifact recoverability.
+- Reports created artifacts, persisted characters, compression, eviction, and blocked-eviction counts.
 - Stops if the resulting prompt remains above the failure threshold.
 
 ### State-transfer validator (`src/state-transfer.js`)
@@ -77,6 +120,8 @@ flowchart TD
 - Markdown project memory.
 - JSON episodes and repository map.
 - Text artifacts plus JSON metadata.
+- Bounded artifact reads by ID with SHA-256 integrity verification.
+- Latest-N-valid retrieval for episodes and artifact metadata.
 
 ### Repository mapper (`src/repo-mapper.js`)
 
@@ -122,7 +167,12 @@ sequenceDiagram
 - Full artifacts remain on disk if prompt previews are truncated.
 - Session JSONL remains available for investigation and future replay.
 - The runtime fails closed above the 90% context threshold.
+- Non-durable tool evidence is kept when deterministic GC or exchange eviction cannot prove recovery.
 - Shell execution is outside the memory and path-containment guarantees; it is not sandboxed.
+
+## Phase 1/2 freeze
+
+v0.1.2 freezes the deterministic baseline. The 0.1.x line may still receive critical bug, security, regression, and documentation fixes, but no new memory architecture, compaction policy, repository intelligence, retrieval engine, or agent topology. Adaptive or semantic planning begins in v0.2.0 and must remain subordinate to these runtime invariants.
 
 ## Portability
 

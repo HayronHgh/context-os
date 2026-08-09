@@ -9,6 +9,7 @@ const STRING_ARRAY_FIELDS = [
   "tests",
   "errors",
   "rejectedApproaches",
+  "artifacts",
   "nextActions"
 ];
 

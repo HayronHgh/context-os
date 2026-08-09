@@ -6,7 +6,6 @@ import path from "node:path";
 import { MemoryStore } from "../src/memory-store.js";
 import { RepoMapper } from "../src/repo-mapper.js";
 import { ToolRunner } from "../src/tools.js";
-import { AgentRuntime } from "../src/agent-runtime.js";
 
 function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "qwen-context-os-"));
@@ -114,17 +113,23 @@ test("corrupted working state fails loudly", () => {
   try {
     fs.writeFileSync(memory.stateFile, "{broken", "utf8");
     assert.throws(() => memory.getState(), /JSON/);
+    fs.writeFileSync(memory.repoMapFile, "{broken", "utf8");
+    assert.deepEqual(memory.readRepoMap(), {
+      generatedAt: null,
+      files: [],
+      recoveredFromCorruption: true
+    });
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
 
-test("malformed episodes are skipped without hiding valid episodes", () => {
+test("corrupted newest episodes do not hide the latest requested valid episode", () => {
   const { root, memory } = fixture();
   try {
     memory.saveEpisode({ task: "valid", solution: "kept" });
     fs.writeFileSync(path.join(memory.episodesDir, "episode-zzzz-corrupt.json"), "{broken", "utf8");
-    const episodes = memory.listEpisodes(8);
+    const episodes = memory.listEpisodes(1);
     assert.equal(episodes.length, 1);
     assert.equal(episodes[0].solution, "kept");
   } finally {
@@ -132,17 +137,72 @@ test("malformed episodes are skipped without hiding valid episodes", () => {
   }
 });
 
-test("oversized tool results retain a full artifact and a bounded preview", () => {
-  const { root, memory } = fixture();
+test("read_artifact retrieves exact content and metadata through the tool interface", async () => {
+  const { root, memory, runner } = fixture();
   try {
-    const runtime = { projectRoot: root, memory, config: { maxToolOutputChars: 120 } };
-    const result = { ok: true, output: "x".repeat(1000) };
-    const formatted = AgentRuntime.prototype.formatToolResult.call(runtime, "test_tool", {}, result);
-    const promptValue = JSON.parse(formatted);
-    const artifactFile = path.join(root, promptValue.artifact);
-    assert.equal(promptValue.preview.length <= 120, true);
-    assert.equal(fs.readFileSync(artifactFile, "utf8"), JSON.stringify(result, null, 2));
+    const text = "first\nsecond\nthird";
+    const artifact = memory.saveArtifact(text, "test_tool", { tool: "test_tool", arguments: {} });
+    const result = await runner.execute("read_artifact", { artifactId: artifact.id });
+    assert.equal(result.content, text);
+    assert.equal(result.metadata.chars, text.length);
+    assert.equal(result.metadata.bytes, Buffer.byteLength(text));
+    assert.match(result.metadata.sha256, /^[a-f0-9]{64}$/);
+    assert.equal(memory.listArtifacts(1)[0].id, artifact.id);
+    assert.equal(runner.readWorkingState().recentArtifacts[0].id, artifact.id);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("read_artifact rejects invalid or unknown artifact IDs", async () => {
+  const { root, runner } = fixture();
+  try {
+    await assert.rejects(() => runner.execute("read_artifact", { artifactId: "../state" }), /Invalid artifact ID/);
+    await assert.rejects(() => runner.execute("read_artifact", { artifactId: "missing-artifact" }), /ENOENT/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("read_artifact range is bounded to 500 lines", () => {
+  const { root, memory } = fixture();
+  try {
+    const text = Array.from({ length: 700 }, (_, index) => `line-${index + 1}`).join("\n");
+    const artifact = memory.saveArtifact(text, "range");
+    const result = memory.readArtifact(artifact.id, { startLine: 2, endLine: 700 });
+    const lines = result.content.split("\n");
+    assert.equal(lines.length, 500);
+    assert.equal(lines[0], "line-2");
+    assert.equal(lines.at(-1), "line-501");
+    assert.equal(result.endLine, 501);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("read_artifact fails integrity validation after content tampering", () => {
+  const { root, memory } = fixture();
+  try {
+    const artifact = memory.saveArtifact("original", "integrity");
+    fs.writeFileSync(path.join(memory.artifactsDir, `${artifact.id}.txt`), "tampered", "utf8");
+    assert.throws(() => memory.readArtifact(artifact.id), /integrity check failed/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("read_artifact rejects an artifact-directory junction escape", (t) => {
+  const { root, memory } = fixture();
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "context-os-artifact-outside-"));
+  try {
+    fs.rmSync(memory.artifactsDir, { recursive: true, force: true });
+    const type = process.platform === "win32" ? "junction" : "dir";
+    if (!linkOrSkip(t, outside, memory.artifactsDir, type)) return;
+    fs.writeFileSync(path.join(outside, "escape.json"), JSON.stringify({ id: "escape" }), "utf8");
+    fs.writeFileSync(path.join(outside, "escape.txt"), "secret", "utf8");
+    assert.throws(() => memory.readArtifact("escape"), /Artifact directory escapes project root/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
   }
 });

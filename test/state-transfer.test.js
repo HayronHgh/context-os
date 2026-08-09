@@ -15,6 +15,7 @@ function validTransfer(overrides = {}) {
     tests: [],
     errors: [],
     rejectedApproaches: [],
+    artifacts: [],
     currentState: "hardening",
     nextActions: [],
     ...overrides
@@ -44,15 +45,30 @@ test("compaction retries once after invalid model output", async () => {
   const responses = ["not json", JSON.stringify(validTransfer())];
   const client = {
     calls: 0,
-    async chat() {
+    requests: [],
+    async chat(messages) {
+      this.requests.push(messages);
       const content = responses[this.calls];
       this.calls += 1;
       return { message: { content } };
     }
   };
-  const result = await AgentRuntime.prototype.compactMessages.call({ client }, [{ role: "user", content: "work" }]);
+  const result = await AgentRuntime.prototype.compactMessages.call({ client }, [{
+    role: "tool",
+    tool_call_id: "call-1",
+    name: "run_command",
+    content: "test output",
+    context_os: {
+      durable: true,
+      artifactId: "run-command-artifact",
+      recoveryType: "artifact",
+      originalChars: 11,
+      sha256: "a".repeat(64)
+    }
+  }]);
   assert.equal(client.calls, 2);
   assert.deepEqual(JSON.parse(result), validTransfer());
+  assert.match(client.requests[0][1].content, /run-command-artifact/);
 });
 
 test("compaction fails loudly after two invalid responses", async () => {

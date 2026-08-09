@@ -79,10 +79,21 @@ The default profile uses:
 64K server context
 12K reserved output
 512-token fixed prompt safety margin
+800-character artifact persistence threshold
+800-character stale tool compression threshold
+500-character stale tool preview
 8K maximum completion per model call
 4K server reasoning budget
 20 maximum tool iterations per user turn
 ```
+
+Keep this startup invariant true:
+
+```text
+artifactPersistenceChars <= staleToolCompressionChars <= maxToolOutputChars
+```
+
+The runtime refuses invalid durability ordering rather than allowing evidence to become prunable before it is persistent.
 
 ## 5. Diagnose and start
 
@@ -145,6 +156,8 @@ Non-interactive mode denies mutations unless `--yes` is also supplied.
 - Edit `.qwen-agent/project.md` to record durable project facts.
 - Solved and verified problems may be saved as episodes.
 - Large outputs are stored under `.qwen-agent/artifacts/`.
+- Medium outputs above `artifactPersistenceChars` are also persisted, even while their full text remains active.
+- The model uses `read_artifact` with an artifact ID for bounded recovery; it never supplies an artifact path.
 - `/new` resets conversation while retaining persistent state.
 - `/compact` forces a structured state transfer.
 
@@ -206,4 +219,4 @@ Optionally add `-MmprojFile projector.gguf`.
 node --test
 ```
 
-The 22 invariant tests cover tool-schema budgeting, distinct compaction thresholds, tool-call boundaries, validated state transfer and fail-loud retry, symlink/junction containment, memory corruption behavior, artifact retention, and destructive-command denial. A file-symlink test is skipped only when the host denies symlink creation.
+The 35 invariant tests cover durability configuration, small/medium/large evidence, exact artifact recovery and integrity, recovery-gated GC/exchange eviction, model serialization, episode robustness, tool-schema budgeting, deterministic pressure behavior, state-transfer validation, symlink/junction containment, memory corruption, and destructive-command denial. A file-symlink test is skipped only when the host denies symlink creation.

@@ -7,13 +7,40 @@
 ContextOS 把 prompt context 視為具體化工作視圖，而不是 Agent 的資料庫。
 
 ```text
-Repository       = Source of truth
-Persistent State = 可持久保存的任務與專案記憶
-Prompt Context   = 可重建的工作視圖
-KV Cache         = 計算加速
+Repository       = 可變動的 source of truth
+Artifact         = 持久 tool evidence
+State Transfer   = 衍生 continuation state
+Prompt Context   = 可拋棄的工作視圖
 ```
 
 這個分離讓 Runtime 可以壓縮或重設 conversation，而不把它視為任務失敗。
+
+## 凍結的核心 invariants
+
+| ID | Invariant |
+| --- | --- |
+| I1 | Repository 是可變動的 source of truth。 |
+| I2 | Persistent state 必須跨 conversation reset 保存。 |
+| I3 | State Transfer 是衍生狀態，不能成為 source of truth。 |
+| I4 | Deterministic tool-evidence eviction 必須存在 durable recovery path。 |
+| I5 | Invalid compaction 不能取代 valid history。 |
+| I6 | File 與 artifact tools 不能離開 selected project root。 |
+| I7 | Context pressure 不能靜默超過 safety envelope。 |
+| I8 | Corrupted auxiliary memory 不能遮蔽無關的 valid memory。 |
+
+## Durability Model
+
+```mermaid
+flowchart TD
+    T["Tool evidence"] --> D{"有 durable artifact？"}
+    D -->|"否"| P["禁止 55% 壓縮與 65% exchange eviction"]
+    D -->|"是"| A["完整 active representation"]
+    A --> B["Bounded representation + artifact ID"]
+    B --> E["Evicted representation + recovery references"]
+    E --> R["read_artifact"]
+```
+
+Persistence 與 rendering 彼此獨立。小於等於 `artifactPersistenceChars` 的結果可保持 context-only；較大結果會建立 exact artifact；超過 `maxToolOutputChars` 時另產生 bounded prompt representation。只有所有 result 都可恢復時，完整 tool exchange 才可執行 deterministic eviction。
 
 ## 元件
 
@@ -47,6 +74,20 @@ flowchart TD
 - Memory 或 repo map 更新後刷新 context。
 - 將過大的工具輸出外部化。
 - 保存 messages、tool activity、usage 與 compaction report。
+- 維護累計 artifact durability metrics。
+
+### Tool Evidence Manager（`src/tool-evidence.js`）
+
+- 準備 canonical full tool-result representation。
+- 不受 prompt size 影響，獨立持久化中型與大型 evidence。
+- 依大小產生完整或 bounded model-visible representation。
+- 在 internal message 加入可 machine-check 的 `context_os` recovery metadata。
+
+### Model serialization boundary（`src/context-messages.js`）
+
+- 將 internal context unit 轉為 OpenAI-compatible message。
+- 移除 `context_os` 與未來 runtime-only policy metadata。
+- 只保留本機 model server 需要的 protocol fields。
 
 ### Context Manager（`src/context-manager.js`）
 
@@ -54,6 +95,8 @@ flowchart TD
 - 先壓縮過期 output，再移除完整舊 tool exchanges，同時維持 protocol 結構。
 - 以完整 user-turn 邊界執行壓縮。
 - 在重建 context 中插入經 schema 驗證的衍生 Coding State Transfer。
+- 55% 壓縮與 65% exchange eviction 都必須通過 artifact recoverability gate。
+- 回報 artifacts、持久 chars、compression、eviction 與 blocked eviction 計數。
 - 壓縮後仍超過 failure threshold 時停止。
 
 ### State-transfer validator（`src/state-transfer.js`）
@@ -77,6 +120,8 @@ flowchart TD
 - Project memory 使用 Markdown。
 - Episodes 與 repo map 使用 JSON。
 - Artifacts 使用 text 加 JSON metadata。
+- 依 ID bounded read artifact，並驗證 SHA-256 integrity。
+- Episodes 與 artifact metadata 採 latest-N-valid retrieval。
 
 ### Repository Mapper（`src/repo-mapper.js`）
 
@@ -122,7 +167,12 @@ sequenceDiagram
 - Prompt preview 被縮短時，完整 artifact 仍在磁碟。
 - Session JSONL 可供調查與未來 replay。
 - Runtime 在 90% context threshold 以上 fail closed。
+- 無法證明 recovery 時，non-durable tool evidence 會保留，不執行 deterministic GC／exchange eviction。
 - Shell execution 不受 memory 與 path containment 完整保護；它沒有 sandbox。
+
+## Phase 1/2 Freeze
+
+v0.1.2 凍結 deterministic baseline。0.1.x 仍可接受 critical bug、security、regression 與 documentation fix，但不再加入新的 memory architecture、compaction policy、repository intelligence、retrieval engine 或 agent topology。Adaptive／semantic planning 從 v0.2.0 開始，而且必須受這些 runtime invariants 約束。
 
 ## 可攜性
 

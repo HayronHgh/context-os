@@ -20,6 +20,10 @@ This is defense in depth, not a race-free OS sandbox. A hostile process that can
 
 This containment applies to ContextOS file tools. It does not constrain arbitrary paths embedded in an approved shell command.
 
+### Artifact tool
+
+`read_artifact` accepts a generated artifact ID, not a filesystem path. The store rejects artifact-directory junction escapes, resolves artifact files inside the store, limits each read to 500 lines, and verifies SHA-256 before returning content. These checks detect accidental or simple on-disk tampering; they are not authenticated signatures against an attacker with the user's filesystem authority.
+
 ### Shell commands
 
 `run_command` executes through the host shell with the current user's permissions. The runtime:

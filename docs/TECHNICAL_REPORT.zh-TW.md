@@ -2,7 +2,7 @@
 
 繁體中文 · [English](TECHNICAL_REPORT.md)
 
-版本：0.1.1
+版本：0.1.2
 
 狀態：Experimental Research MVP
 
@@ -17,6 +17,8 @@ ContextOS 實作本機 coding agent 外部 Context Runtime 的前兩個階段：
 - Artifact 外部化
 - 由 budget 觸發的 context compaction
 - 納入 tool schema 的 input accounting 與經 schema 驗證的 state transfer
+- durable tool-evidence envelopes 與具有 recovery gate 的 deterministic eviction
+- bounded artifact retrieval、integrity metadata 與 durability observability
 - Windows lifecycle 與 diagnostics scripts
 
 尚未實作 AST/LSP graph、semantic retrieval、transactional memory database、多 Agent orchestration、自製 Web UI 或強 process sandbox。
@@ -27,11 +29,14 @@ ContextOS 實作本機 coding agent 外部 Context Runtime 的前兩個階段：
 | --- | --- |
 | `src/index.js` | CLI、設定、health check、approval、指令 |
 | `src/agent-runtime.js` | Model/tool loop、prompt reconstruction、持久化 |
+| `src/config.js` | Durability defaults 與 startup invariants |
+| `src/context-messages.js` | Internal-to-model serialization boundary |
 | `src/context-manager.js` | Budget、pruning、structured compaction |
 | `src/llama-client.js` | OpenAI-compatible HTTP client |
 | `src/memory-store.js` | JSON、JSONL、Markdown、episodes、artifacts |
 | `src/repo-mapper.js` | File scan 與近似 symbol extraction |
-| `src/tools.js` | 11 個模型工具與 guardrails |
+| `src/tools.js` | 12 個模型工具與 guardrails |
+| `src/tool-evidence.js` | Tool-result preparation、persistence、rendering、recovery metadata |
 | `src/prompts.js` | Runtime 與 state-transfer prompts |
 | `src/state-transfer.js` | 嚴格 state-transfer parsing 與 schema validation |
 | `src/utils.js` | Atomic I/O、path checks、IDs、token estimate |
@@ -74,12 +79,17 @@ Runtime 從 current state、project memory、recent episodes 與有上限的 rep
 90%    fail closed
 ```
 
-使用率的分子包含 messages、完整 tool schemas、`tool_choice` 與固定 prompt 安全餘量。較舊的完整 turns 會轉成通過 schema 驗證的衍生 continuation state；無效 compaction 會重試一次，之後 fail loud 且不取代 history。即使 tool output 的 prompt preview 被縮短，完整內容仍保留在磁碟。
+使用率的分子包含 model-serialized messages、完整 tool schemas、`tool_choice` 與固定 prompt 安全餘量。Runtime-only `context_os` metadata 不會進入 model request 或 token estimate。
+
+55% 只能縮短 stale durable tool result；65% 必須所有預期 results 都有 artifact，才能 eviction 完整 exchange。Marker 與 State Transfer 會保留 artifact recovery references。Semantic／hard transfer 保持 v0.1.1 deterministic policy；v0.1.2 不導入 semantic planning。
+
+預設超過 800 characters 的 tool result 會 exact persistence；12,000 characters 以內仍在 active context 保留全文，更大結果使用 bounded prompt text。Metadata 記錄 character/byte counts 與 SHA-256；`read_artifact` 只接受 ID，每次最多 500 行。
 
 ## 安全性質
 
 - File tools 對既存 components 強制 lexical 與 real-path project-root containment。
 - Read、write、edit 會拒絕 symbolic-link file、directory link 與 Windows junction escape。
+- Artifact read 拒絕 path input、directory-junction escape 與 integrity mismatch。
 - Scan 不跟隨 symbolic link。
 - Mutation tools 預設需要 approval。
 - 常見 destructive commands 會被拒絕。
@@ -89,9 +99,9 @@ Runtime 從 current state、project memory、recent episodes 與有上限的 rep
 
 ## 驗證
 
-目前共有 22 個 invariant tests，涵蓋 tool-schema accounting、threshold 行為、tool-call boundary、malformed state transfer 的 retry/fail-loud、lexical 與 symlink/junction containment、memory corruption、artifact retention 與 destructive-command denial。只有 host OS 禁止建立 file symlink 時才會條件式跳過該項；Windows junction escape 仍會測試。
+目前共有 35 個 invariant tests，涵蓋 durability ordering、小／中／大型 evidence、exact artifact recovery 與 SHA-256 failure、具有 recovery gate 的 GC/exchange eviction、runtime metadata serialization、observability counters、latest-N-valid episodes、可恢復的 repo-map corruption、tool-schema accounting、threshold 行為、state-transfer validation/retry、lexical 與 symlink/junction containment、fail-loud working-state corruption 與 destructive-command denial。只有 host OS 禁止建立 file symlink 時才條件式跳過該項；Windows junction paths 仍會測試。
 
-目前驗證過的本機 profile 已以 llama.cpp + Qwen3.6、64K context、8K Agent output、4K reasoning budget 完成 tool-call 端到端 smoke test。教程中的 32K 是故障排除 fallback，不是該次驗證使用的配置。
+v0.1.2 release candidate 已以 llama.cpp + Qwen3.6 完成端到端 recovery smoke test：模型呼叫 `read_file`，取得 14,116-character exact persisted artifact 的 bounded representation，再依 ID 呼叫 `read_artifact`，最後回傳指定 success marker。驗證 profile 使用 64K context、8K Agent output 與 4K reasoning budget。教程中的 32K 是故障排除 fallback，不是該次驗證配置。
 
 ## 研究假設
 
@@ -105,19 +115,14 @@ Runtime 從 current state、project memory、recent episodes 與有上限的 rep
 
 - Token estimate 已包含 tools 與固定 overhead，但仍為 tokenizer 近似值。
 - Repository symbol 由 regex 產生。
-- Episodes 依 recency 選擇。
+- Episodes 與 artifacts 依 latest valid recency 選擇，不含 semantic relevance。
 - Response 尚未 streaming。
 - State extraction 部分依賴模型主動性。
 - Shared project state 沒有 cross-process lock。
 - 只有 Windows 管理環境完成驗證。
 
-## 下一階段
+## Phase 1/2 Freeze 與下一階段
 
-1. Context Recovery Benchmark、接近門檻時的 tokenizer 精確計數與 estimator metrics。
-2. Validated end-of-turn state extraction。
-3. Session replay 與 interruption recovery。
-4. tree-sitter/LSP 與 Git-aware repository intelligence。
-5. SQLite FTS5/BM25 retrieval。
-6. 選用 semantic retrieval。
-7. 更強 command isolation。
-8. Streaming 與 context/memory inspection UI。
+v0.1.2 凍結 deterministic Phase 1/2 baseline。後續 0.1.x 只處理 critical bug、security、regression 與 documentation correction。
+
+v0.2.0 保留給 **Adaptive Semantic Context Planning**：token pressure 決定何時可能需要 intervention，task semantics 提議什麼重要，凍結的 runtime invariants 決定哪些 action 合法。第一個 benchmark 應比較 threshold、pure semantic 與 hybrid planners，不能改動 v0.1.2 control group。

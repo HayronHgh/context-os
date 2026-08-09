@@ -4,6 +4,9 @@ import { RepoMapper } from "./repo-mapper.js";
 import { TOOL_DEFINITIONS, ToolRunner } from "./tools.js";
 import { truncateMiddle } from "./utils.js";
 import { formatStateTransfer, parseStateTransfer } from "./state-transfer.js";
+import { normalizeAgentConfig } from "./config.js";
+import { serializeContext } from "./context-messages.js";
+import { isDurableToolMessage, recoveryReference, ToolEvidenceManager } from "./tool-evidence.js";
 
 function assistantContent(message) {
   if (typeof message.content === "string" && message.content.trim()) return message.content;
@@ -28,13 +31,15 @@ function stripCodeFence(text) {
 export class AgentRuntime {
   constructor({ projectRoot, config, client, memory, confirm, autoApprove = false, onEvent = () => {} }) {
     this.projectRoot = projectRoot;
-    this.config = config;
+    this.config = normalizeAgentConfig(config);
     this.client = client;
     this.memory = memory;
     this.onEvent = onEvent;
     this.mapper = new RepoMapper(projectRoot, memory);
-    this.context = new ContextManager(config);
-    this.toolRunner = new ToolRunner({ projectRoot, memory, mapper: this.mapper, config, confirm, autoApprove });
+    this.context = new ContextManager(this.config);
+    this.toolRunner = new ToolRunner({ projectRoot, memory, mapper: this.mapper, config: this.config, confirm, autoApprove });
+    this.evidence = new ToolEvidenceManager({ memory, config: this.config });
+    this.durabilityMetrics = { artifactsCreated: 0, artifactCharsPersisted: 0 };
     this.messages = [];
     this.resetConversation();
   }
@@ -52,6 +57,7 @@ export class AgentRuntime {
       state: this.memory.getState(),
       projectMemory: this.memory.readProjectMemory(),
       episodes: this.memory.listEpisodes(6),
+      artifacts: this.memory.listArtifacts(12),
       repoMapSummary: this.mapper.summarize(map)
     });
   }
@@ -71,12 +77,16 @@ export class AgentRuntime {
   }
 
   async compactMessages(messages) {
-    const transcript = messages.map((message) => ({
-      role: message.role,
-      name: message.name,
-      content: truncateMiddle(message.content ?? "", 14000),
-      tool_calls: message.tool_calls
-    }));
+    const transcript = messages.map((internalMessage) => {
+      const message = serializeContext([internalMessage])[0];
+      return {
+        role: message.role,
+        name: message.name,
+        content: truncateMiddle(message.content ?? "", 14000),
+        tool_calls: message.tool_calls,
+        recovery: isDurableToolMessage(internalMessage) ? recoveryReference(internalMessage) : undefined
+      };
+    });
     const request = [
       { role: "system", content: COMPACTION_SYSTEM_PROMPT },
       { role: "user", content: JSON.stringify(transcript) }
@@ -101,7 +111,8 @@ export class AgentRuntime {
   async prepareContext(options = {}) {
     const prepared = await this.context.prepare(this.messages, (older) => this.compactMessages(older), {
       ...options,
-      tools: TOOL_DEFINITIONS
+      tools: TOOL_DEFINITIONS,
+      durabilityMetrics: this.durabilityMetrics
     });
     this.messages = prepared.messages;
     if (prepared.stateTransfer) this.memory.updateState({ stateTransfer: prepared.stateTransfer });
@@ -118,17 +129,6 @@ export class AgentRuntime {
     return report;
   }
 
-  formatToolResult(name, args, result) {
-    const full = JSON.stringify(result, null, 2);
-    if (full.length <= this.config.maxToolOutputChars) return full;
-    const artifact = this.memory.saveArtifact(full, name, { tool: name, arguments: args });
-    return JSON.stringify({
-      artifact: pathForPrompt(this.projectRoot, artifact.file),
-      note: "Full tool output was externalized. Read the artifact only if needed.",
-      preview: truncateMiddle(full, this.config.maxToolOutputChars)
-    }, null, 2);
-  }
-
   async runTurn(userText) {
     this.refreshSystemPrompt();
     this.messages.push({ role: "user", content: userText });
@@ -136,7 +136,7 @@ export class AgentRuntime {
 
     for (let iteration = 0; iteration < this.config.maxToolIterations; iteration += 1) {
       await this.prepareContext();
-      const { message, usage } = await this.client.chat(this.messages, {
+      const { message, usage } = await this.client.chat(serializeContext(this.messages), {
         tools: TOOL_DEFINITIONS,
         maxTokens: this.config.maxOutputTokens,
         temperature: this.config.temperature
@@ -165,17 +165,21 @@ export class AgentRuntime {
         } catch (error) {
           result = { ok: false, error: error.message };
         }
-        const content = this.formatToolResult(name, args, result);
-        this.messages.push({ role: "tool", tool_call_id: toolCall.id, name, content });
-        this.memory.appendSession({ type: "tool_result", name, arguments: args, result });
+        const evidence = this.evidence.createToolMessage({ toolCallId: toolCall.id, name, arguments: args, result });
+        this.durabilityMetrics.artifactsCreated += evidence.metrics.artifactsCreated;
+        this.durabilityMetrics.artifactCharsPersisted += evidence.metrics.artifactCharsPersisted;
+        this.messages.push(evidence.message);
+        this.memory.appendSession({
+          type: "tool_result",
+          name,
+          arguments: args,
+          result,
+          evidence: evidence.message.context_os
+        });
         this.onEvent({ type: "tool_end", name, ok: result?.ok !== false, denied: result?.denied === true });
         if (["update_working_state", "save_episode", "build_repo_map"].includes(name)) this.refreshSystemPrompt();
       }
     }
     throw new Error(`Tool loop exceeded ${this.config.maxToolIterations} iterations.`);
   }
-}
-
-function pathForPrompt(projectRoot, file) {
-  return file.startsWith(projectRoot) ? file.slice(projectRoot.length + 1).replaceAll("\\", "/") : file;
 }

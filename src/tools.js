@@ -48,7 +48,12 @@ export const TOOL_DEFINITIONS = [
     timeoutSeconds: { type: "integer", minimum: 1, maximum: 900 }
   }, ["command"]),
   definition("build_repo_map", "Scan the project and persist a compact file/symbol map.", {}),
-  definition("read_working_state", "Read persistent task state, project memory, and recent episodes.", {}),
+  definition("read_working_state", "Read persistent task state, project memory, recent episodes, and artifact recovery metadata.", {}),
+  definition("read_artifact", "Read a bounded line range from durable tool evidence by artifact ID.", {
+    artifactId: { type: "string", description: "Artifact ID returned by a previous tool result" },
+    startLine: { type: "integer", minimum: 1 },
+    endLine: { type: "integer", minimum: 1 }
+  }, ["artifactId"]),
   definition("update_working_state", "Persist compact state needed to continue the coding task after context compaction.", {
     objective: { type: "string" },
     currentTask: { type: "string" },
@@ -169,6 +174,7 @@ export class ToolRunner {
       case "run_command": return this.runCommand(args);
       case "build_repo_map": return this.buildRepoMap();
       case "read_working_state": return this.readWorkingState();
+      case "read_artifact": return this.memory.readArtifact(args.artifactId, args);
       case "update_working_state": return this.memory.updateState(args);
       case "save_episode": return this.memory.saveEpisode(args);
       case "get_datetime": return { local: new Date().toString(), utc: new Date().toISOString() };
@@ -271,7 +277,8 @@ export class ToolRunner {
     return {
       state: this.memory.getState(),
       projectMemory: this.memory.readProjectMemory(),
-      recentEpisodes: this.memory.listEpisodes(8)
+      recentEpisodes: this.memory.listEpisodes(8),
+      recentArtifacts: this.memory.listArtifacts(12)
     };
   }
 }

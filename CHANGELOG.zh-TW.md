@@ -4,6 +4,22 @@
 
 所有重要變更都會記錄於此。
 
+## [0.1.2] - 2026-08-09
+
+### Durability 與 core invariant freeze
+
+- Tool evidence persistence 與 prompt rendering 解耦，中型與大型結果都可持久化
+- 加入可 machine-check 的 internal recovery metadata 與 model serialization boundary
+- 55% stale-output compression 與 65% exchange eviction 必須通過 artifact recoverability gate
+- 加入第 12 個 Runtime tool：`read_artifact`，只接受 ID 並提供 bounded retrieval
+- Artifact metadata 記錄 characters、bytes、SHA-256、tool、arguments 與建立時間
+- Pruning、State Transfer、reset 與 working-state read 都保留 artifact recovery references
+- 將 `listEpisodes(N)` 定義為最新 N 個 valid episodes
+- 加入 artifact／compression／eviction／blocked-eviction observability counters
+- Durability threshold 順序錯誤時拒絕啟動
+- Core invariant tests 從 22 個擴充到 35 個
+- 凍結 deterministic Phase 1/2 baseline；adaptive semantic planning 留給 v0.2.0
+
 ## [0.1.1] - 2026-08-09
 
 ### Correctness hardening

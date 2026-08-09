@@ -8,6 +8,7 @@ import { AgentRuntime } from "./agent-runtime.js";
 import { LlamaClient } from "./llama-client.js";
 import { MemoryStore } from "./memory-store.js";
 import { deepMerge, readJson } from "./utils.js";
+import { normalizeAgentConfig } from "./config.js";
 
 const sourceDirectory = path.dirname(fileURLToPath(import.meta.url));
 const applicationRoot = path.resolve(sourceDirectory, "..");
@@ -45,7 +46,10 @@ async function main() {
   const localConfigFile = path.join(applicationRoot, "config", "agent.json");
   const exampleConfigFile = path.join(applicationRoot, "config", "agent.example.json");
   const defaultConfigFile = fs.existsSync(localConfigFile) ? localConfigFile : exampleConfigFile;
-  const config = deepMerge(readJson(defaultConfigFile), args.config ? readJson(path.resolve(args.config)) : {});
+  const config = normalizeAgentConfig(deepMerge(
+    readJson(defaultConfigFile),
+    args.config ? readJson(path.resolve(args.config)) : {}
+  ));
   const projectRoot = path.resolve(args.project ?? path.join(applicationRoot, "workspace"));
   if (!fs.existsSync(projectRoot)) fs.mkdirSync(projectRoot, { recursive: true });
   const memory = new MemoryStore(projectRoot).initialize();
@@ -59,7 +63,7 @@ async function main() {
   };
   const runtime = new AgentRuntime({ projectRoot, config, client, memory, confirm, autoApprove: args.yes, onEvent: eventPrinter });
 
-  console.log("ContextOS 0.1.1");
+  console.log("ContextOS 0.1.2");
   console.log(`Project: ${projectRoot}`);
   try {
     const status = await runtime.checkHealth();

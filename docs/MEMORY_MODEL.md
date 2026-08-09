@@ -31,19 +31,23 @@ This is the only memory file that may be useful to commit and share with a team.
 
 Directory: `.qwen-agent/episodes/`
 
-An episode describes a solved problem: task, symptoms, root cause, solution, files, verification, and result. The current MVP retrieves recent episodes; relevance ranking is planned.
+An episode describes a solved problem: task, symptoms, root cause, solution, files, verification, and result. `listEpisodes(N)` scans newest-first until it has the latest N **valid** episodes, so corrupted new files cannot hide older valid memory. Relevance ranking is deferred to a later version.
 
 ## Repository knowledge
 
 File: `.qwen-agent/repo-map.json`
 
-Generated file metadata and approximate symbols. This is a retrieval aid, not a source of truth, and should be regenerated rather than committed.
+Generated file metadata and approximate symbols. This is a retrieval aid, not a source of truth, and should be regenerated rather than committed. Invalid JSON is treated as a cache miss and rebuilt; unlike corrupted `state.json`, it does not stop recovery.
 
 ## Tool artifacts
 
 Directory: `.qwen-agent/artifacts/`
 
-Full command, test, grep, or file output that was too large for prompt context. Each text artifact has JSON metadata.
+Exact command, test, grep, file, or other tool evidence above `artifactPersistenceChars`. Persistence is independent of prompt rendering: medium results keep their full active representation, while large results use a bounded preview.
+
+Each text artifact has JSON metadata containing ID, creation time, tool, arguments, relative file, characters, bytes, and SHA-256. `read_artifact` retrieves at most 500 lines by ID, verifies integrity, and never accepts a model-supplied filesystem path. Recent artifact IDs are included in rebuilt system prompts and `read_working_state`, so recovery remains discoverable after a conversation reset.
+
+As with episodes, artifact metadata listing skips corrupted entries until it collects the requested number of valid records. Exact artifact reads fail loudly on missing content or hash mismatch.
 
 ## Session events
 
