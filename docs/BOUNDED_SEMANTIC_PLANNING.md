@@ -144,6 +144,8 @@ The call has:
 
 Only `message.content` is treated as proposal output. Hidden reasoning is not fed into normal conversation and is not required by telemetry.
 
+The frozen `planner-v1` prompt states the complete decision enums and scalar rules: action values, `importance` values (`critical`, `high`, `medium`, `low`), non-empty `reason`, and a positive-integer `targetTokens` present only for `COMPRESS`. The strict parser remains authoritative.
+
 ## Strict output and retry
 
 Raw output is untrusted. The adapter may remove one enclosing JSON code fence, but it does not repair JSON or rewrite fields. It then applies:
@@ -173,7 +175,21 @@ The correction message includes only the machine-readable error code/path, not t
 
 `createPlannerSessionAudit(memory)` writes Planner events through the existing session JSONL channel. It never calls project-memory or episode APIs.
 
-Attempt events record prompt version, inventory identity, estimated/observed tokens, visible/hidden unit counts, attempt, parse result, latency, error code, and raw final-output content. They do not record hidden reasoning.
+Attempt events record prompt version, inventory identity, per-request estimated/observed tokens, visible/hidden unit counts, attempt, parse result, latency, error code, failure category, and raw final-output content. Binding/visibility/stale failures report a successful parse; a client failure reports parsing as not attempted. Events do not record hidden reasoning.
+
+Result-level `PlannerInputTokens`, `PlannerOutputTokens`, and `PlannerLatencyMs` are cumulative across every Planner attempt. This keeps one correction attempt visible as its real total experiment cost instead of reporting only the successful request.
+
+Failure telemetry separates `failedAttempts` and the following categories:
+
+| Category | Meaning |
+| --- | --- |
+| `protocolFailures` | malformed JSON, schema/duplicate violations, or empty output |
+| `bindingFailures` | Runtime plan-ID challenge mismatch |
+| `visibilityFailures` | decision for a unit outside `visibleUnitIds` |
+| `clientFailures` | model transport/client failure |
+| `staleFailures` | model proposal bound to stale inventory identity |
+
+`parseFailures` is retained as the narrower count of malformed JSON, schema violations, and duplicate decisions. It does not include binding, visibility, client, or stale failures.
 
 Result metrics include:
 
@@ -184,6 +200,9 @@ PlannerLatencyMs
 VisibleUnits / HiddenUnits
 ExplicitDecisions / ImplicitKeeps
 ParseAttempts / ParseFailures
+FailedAttempts
+ProtocolFailures / BindingFailures / VisibilityFailures
+ClientFailures / StaleFailures
 AuthorizedDecisions / RejectedDecisions / AuditOnlyDecisions
 RejectionReasonDistribution
 PotentialReductionUpperBound / RequiredReductionTokens

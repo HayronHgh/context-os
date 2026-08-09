@@ -14,6 +14,23 @@ const RETRYABLE_CODES = new Set([
   "PLANNER_CLIENT_ERROR"
 ]);
 
+const PARSE_FAILURE_CODES = new Set([
+  "MALFORMED_JSON",
+  "SCHEMA_VIOLATION",
+  "DUPLICATE_DECISION"
+]);
+
+const FAILURE_CATEGORIES = Object.freeze({
+  MALFORMED_JSON: "protocol",
+  SCHEMA_VIOLATION: "protocol",
+  DUPLICATE_DECISION: "protocol",
+  PLANNER_EMPTY_OUTPUT: "protocol",
+  PLAN_ID_MISMATCH: "binding",
+  PLAN_UNIT_NOT_VISIBLE: "visibility",
+  PLANNER_CLIENT_ERROR: "client",
+  STALE_INVENTORY: "stale"
+});
+
 export class SemanticPlannerError extends Error {
   constructor(code, message, { causeCode = null, path = null, attempts = 0 } = {}) {
     super(message);
@@ -69,6 +86,26 @@ function failureInstruction(error) {
   return `Previous proposal was rejected: ${error.code}${location}. Return corrected JSON only. The exact top-level keys are schemaVersion, planId, inventory, decisions. inventory must be the nested object {"id": inventory.id, "fingerprint": inventory.fingerprint}; never emit inventoryId or inventoryFingerprint. Reuse requestedPlanId and the exact inventory identity.`;
 }
 
+function recordFailure(run, code) {
+  run.failedAttempts += 1;
+  if (PARSE_FAILURE_CODES.has(code)) run.parseFailures += 1;
+  const category = FAILURE_CATEGORIES[code];
+  if (category) run.failures[category] += 1;
+}
+
+function parseResultFor(code) {
+  if (code === "PLANNER_CLIENT_ERROR") return "not_attempted";
+  if (["PLAN_ID_MISMATCH", "PLAN_UNIT_NOT_VISIBLE", "STALE_INVENTORY"].includes(code)) return "ok";
+  return "error";
+}
+
+function freezeRun(run) {
+  return Object.freeze({
+    ...run,
+    failures: Object.freeze({ ...run.failures })
+  });
+}
+
 export class QwenPlanner extends ContextPlanner {
   constructor({ client, config = {}, audit = () => {}, now = () => Date.now() } = {}) {
     super();
@@ -99,8 +136,16 @@ export class QwenPlanner extends ContextPlanner {
     const run = {
       plannerVersion: PLANNER_PROMPT_VERSION,
       attempts: 0,
+      failedAttempts: 0,
       parseFailures: 0,
-      inputTokens: input.estimatedInputTokens,
+      failures: {
+        protocol: 0,
+        binding: 0,
+        visibility: 0,
+        client: 0,
+        stale: 0
+      },
+      inputTokens: 0,
       outputTokens: 0,
       latencyMs: 0,
       visibleUnits: input.visibleUnitIds.length,
@@ -137,9 +182,10 @@ export class QwenPlanner extends ContextPlanner {
         const parsed = parseCompactionPlan(stripOptionalCodeFence(rawOutput));
         const plan = validateCandidate(parsed, input);
         const latencyMs = Math.max(0, this.now() - startedAt);
+        const observedInputTokens = response?.usage?.prompt_tokens ?? requestTokens;
         const outputTokens = response?.usage?.completion_tokens ?? estimateTokens(rawOutput);
         run.attempts = attempt;
-        run.inputTokens = response?.usage?.prompt_tokens ?? run.inputTokens;
+        run.inputTokens += observedInputTokens;
         run.outputTokens += outputTokens;
         run.latencyMs += latencyMs;
         await this.audit({
@@ -147,7 +193,7 @@ export class QwenPlanner extends ContextPlanner {
           plannerVersion: PLANNER_PROMPT_VERSION,
           inventoryId: input.payload.inventory.id,
           inventoryFingerprint: input.payload.inventory.fingerprint,
-          inputTokens: response?.usage?.prompt_tokens ?? requestTokens,
+          inputTokens: observedInputTokens,
           visibleUnits: input.visibleUnitIds.length,
           hiddenUnits: input.hiddenUnitIds.length,
           attempt,
@@ -156,15 +202,17 @@ export class QwenPlanner extends ContextPlanner {
           latencyMs,
           rawOutput
         });
-        this.lastRun = Object.freeze({ ...run });
+        this.lastRun = freezeRun(run);
         return plan;
       } catch (error) {
         currentError = attemptError(error);
         const latencyMs = Math.max(0, this.now() - startedAt);
+        const observedInputTokens = response?.usage?.prompt_tokens ?? requestTokens;
         const outputTokens = response?.usage?.completion_tokens
           ?? (rawOutput ? estimateTokens(rawOutput) : 0);
         run.attempts = attempt;
-        run.parseFailures += 1;
+        recordFailure(run, currentError.code);
+        run.inputTokens += observedInputTokens;
         run.outputTokens += outputTokens;
         run.latencyMs += latencyMs;
         await this.audit({
@@ -172,13 +220,14 @@ export class QwenPlanner extends ContextPlanner {
           plannerVersion: PLANNER_PROMPT_VERSION,
           inventoryId: input.payload.inventory.id,
           inventoryFingerprint: input.payload.inventory.fingerprint,
-          inputTokens: response?.usage?.prompt_tokens ?? requestTokens,
+          inputTokens: observedInputTokens,
           visibleUnits: input.visibleUnitIds.length,
           hiddenUnits: input.hiddenUnitIds.length,
           attempt,
           outputTokens,
-          parseResult: "error",
+          parseResult: parseResultFor(currentError.code),
           errorCode: currentError.code,
+          failureCategory: FAILURE_CATEGORIES[currentError.code] ?? "unknown",
           errorPath: currentError.path ?? null,
           latencyMs,
           rawOutput
@@ -186,7 +235,7 @@ export class QwenPlanner extends ContextPlanner {
       }
 
       if (currentError.code === "STALE_INVENTORY") {
-        this.lastRun = Object.freeze({ ...run });
+        this.lastRun = freezeRun(run);
         throw new SemanticPlannerError("STALE_INVENTORY", currentError.message, {
           causeCode: currentError.code,
           path: currentError.path,
@@ -194,7 +243,7 @@ export class QwenPlanner extends ContextPlanner {
         });
       }
       if (!RETRYABLE_CODES.has(currentError.code) || attempt >= this.config.maxAttempts) {
-        this.lastRun = Object.freeze({ ...run });
+        this.lastRun = freezeRun(run);
         throw new SemanticPlannerError(
           "PLANNER_FAILED",
           `Semantic Planner failed after ${attempt} attempt${attempt === 1 ? "" : "s"}: ${currentError.message}`,

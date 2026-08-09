@@ -38,12 +38,15 @@ class FakePlannerClient {
     this.calls.push(structuredClone({ messages, options }));
     const output = this.outputs.shift();
     if (output instanceof Error) throw output;
+    const fixture = typeof output === "object" && output !== null
+      ? output
+      : { content: output };
     return {
       message: {
-        content: output,
+        content: fixture.content,
         reasoning_content: "hidden reasoning must not be audited"
       },
-      usage: { prompt_tokens: 700, completion_tokens: 80 }
+      usage: fixture.usage ?? { prompt_tokens: 700, completion_tokens: 80 }
     };
   }
 }
@@ -87,6 +90,9 @@ test("QwenPlanner uses an isolated, tool-free, versioned strict-JSON request", a
   assert.equal(client.calls[0].messages.length, 2);
   assert.equal(client.calls[0].messages[0].role, "system");
   assert.match(client.calls[0].messages[0].content, /You propose context actions/);
+  assert.match(client.calls[0].messages[0].content, /critical, high, medium, low/);
+  assert.match(client.calls[0].messages[0].content, /targetTokens.*positive integer/);
+  assert.match(client.calls[0].messages[0].content, /reason must be a non-empty string/);
   assert.deepEqual(client.calls[0].options.tools, []);
   assert.deepEqual(client.calls[0].options.chatTemplateKwargs, { enable_thinking: false });
   assert.deepEqual(client.calls[0].options.responseFormat, { type: "json_object" });
@@ -99,7 +105,16 @@ test("QwenPlanner uses an isolated, tool-free, versioned strict-JSON request", a
 
 test("protocol failure gets exactly one bounded correction attempt", async () => {
   const input = inputFor();
-  const client = new FakePlannerClient(["not-json", jsonPlan(input)]);
+  const client = new FakePlannerClient([
+    {
+      content: "not-json",
+      usage: { prompt_tokens: 700, completion_tokens: 20 }
+    },
+    {
+      content: jsonPlan(input),
+      usage: { prompt_tokens: 850, completion_tokens: 30 }
+    }
+  ]);
   const events = [];
   const planner = new QwenPlanner({ client, config: plannerConfig, audit: (event) => events.push(event) });
   const plan = await planner.plan(input);
@@ -109,8 +124,19 @@ test("protocol failure gets exactly one bounded correction attempt", async () =>
   assert.match(client.calls[1].messages[2].content, /MALFORMED_JSON/);
   assert.doesNotMatch(client.calls[1].messages[2].content, /not-json/);
   assert.deepEqual(events.map((event) => event.parseResult), ["error", "ok"]);
+  assert.deepEqual(events.map((event) => event.inputTokens), [700, 850]);
   assert.equal(planner.lastRun.attempts, 2);
+  assert.equal(planner.lastRun.failedAttempts, 1);
   assert.equal(planner.lastRun.parseFailures, 1);
+  assert.equal(planner.lastRun.inputTokens, 1550);
+  assert.equal(planner.lastRun.outputTokens, 50);
+  assert.deepEqual(planner.lastRun.failures, {
+    protocol: 1,
+    binding: 0,
+    visibility: 0,
+    client: 0,
+    stale: 0
+  });
 });
 
 test("two invalid outputs fail closed as PLANNER_FAILED", async () => {
@@ -125,6 +151,9 @@ test("two invalid outputs fail closed as PLANNER_FAILED", async () => {
     return true;
   });
   assert.equal(client.calls.length, 2);
+  assert.equal(planner.lastRun.failedAttempts, 2);
+  assert.equal(planner.lastRun.parseFailures, 2);
+  assert.equal(planner.lastRun.failures.protocol, 2);
 });
 
 test("non-visible unit decisions may repair once", async () => {
@@ -138,7 +167,22 @@ test("non-visible unit decisions may repair once", async () => {
   const plan = await planner.plan(input);
   assert.equal(plan.decisions.length, 0);
   assert.equal(client.calls.length, 2);
-  assert.equal(planner.lastRun.parseFailures, 1);
+  assert.equal(planner.lastRun.parseFailures, 0);
+  assert.equal(planner.lastRun.failedAttempts, 1);
+  assert.equal(planner.lastRun.failures.visibility, 1);
+});
+
+test("plan-ID mismatch is binding telemetry, not a parse failure", async () => {
+  const input = inputFor();
+  const client = new FakePlannerClient([
+    jsonPlan(input, [], { planId: "plan_wrong_challenge" }),
+    jsonPlan(input)
+  ]);
+  const planner = new QwenPlanner({ client, config: plannerConfig });
+  await planner.plan(input);
+  assert.equal(planner.lastRun.parseFailures, 0);
+  assert.equal(planner.lastRun.failures.binding, 1);
+  assert.equal(planner.lastRun.failedAttempts, 1);
 });
 
 test("stale inventory identity is discarded without retry", async () => {
@@ -153,6 +197,9 @@ test("stale inventory identity is discarded without retry", async () => {
     return true;
   });
   assert.equal(client.calls.length, 1);
+  assert.equal(planner.lastRun.parseFailures, 0);
+  assert.equal(planner.lastRun.failures.stale, 1);
+  assert.equal(planner.lastRun.failedAttempts, 1);
 });
 
 test("client failure may retry once without widening authority", async () => {
@@ -163,6 +210,9 @@ test("client failure may retry once without widening authority", async () => {
   assert.equal(plan.planId, input.payload.requestedPlanId);
   assert.equal(client.calls.length, 2);
   assert.ok(client.calls.every((call) => call.options.tools.length === 0));
+  assert.equal(planner.lastRun.parseFailures, 0);
+  assert.equal(planner.lastRun.failures.client, 1);
+  assert.equal(planner.lastRun.failedAttempts, 1);
 });
 
 test("hidden units become implicit KEEP after validation", async () => {
@@ -206,6 +256,12 @@ test("Validator rejection stops without autonomous semantic replanning", async (
   assert.equal(result.metrics.rejectedDecisions, 1);
   assert.equal(result.metrics.illegalProposalRate, 1);
   assert.equal(result.metrics.proposalAuthorizationRate, 0);
+  assert.equal(result.metrics.failedAttempts, 0);
+  assert.equal(result.metrics.protocolFailures, 0);
+  assert.equal(result.metrics.bindingFailures, 0);
+  assert.equal(result.metrics.visibilityFailures, 0);
+  assert.equal(result.metrics.clientFailures, 0);
+  assert.equal(result.metrics.staleFailures, 0);
 });
 
 test("inventory changing after the model call is stale and does not retry", async () => {
@@ -243,7 +299,16 @@ test("Planner telemetry uses session audit, not semantic memory", async () => {
     appendSession(event) { records.push(structuredClone(event)); }
   };
   const audit = createPlannerSessionAudit(memory);
-  const client = new FakePlannerClient([jsonPlan(bounded)]);
+  const client = new FakePlannerClient([
+    {
+      content: "not-json",
+      usage: { prompt_tokens: 700, completion_tokens: 20 }
+    },
+    {
+      content: jsonPlan(bounded),
+      usage: { prompt_tokens: 850, completion_tokens: 30 }
+    }
+  ]);
   const planner = new QwenPlanner({ client, config: plannerConfig, audit });
   const before = structuredClone({ current, memory: { projectMemory: memory.projectMemory } });
   const result = await generateSemanticProposal({
@@ -257,8 +322,16 @@ test("Planner telemetry uses session audit, not semantic memory", async () => {
   assert.equal(result.status, "VALIDATED");
   assert.deepEqual(records.map((record) => record.type), [
     "semantic_planner_attempt",
+    "semantic_planner_attempt",
     "semantic_planner_result"
   ]);
+  assert.deepEqual(records.slice(0, 2).map((record) => record.inputTokens), [700, 850]);
+  assert.equal(records[0].failureCategory, "protocol");
+  assert.equal(result.metrics.plannerInputTokens, 1550);
+  assert.equal(result.metrics.plannerOutputTokens, 50);
+  assert.equal(result.metrics.failedAttempts, 1);
+  assert.equal(result.metrics.parseFailures, 1);
+  assert.equal(result.metrics.protocolFailures, 1);
   assert.equal(memory.projectMemory, "unchanged");
   assert.deepEqual({ current, memory: { projectMemory: memory.projectMemory } }, before);
   assert.doesNotMatch(JSON.stringify(records), /hidden reasoning/);

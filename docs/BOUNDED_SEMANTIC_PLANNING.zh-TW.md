@@ -144,6 +144,8 @@ user: bounded PlannerInventoryView JSON
 
 只有 `message.content` 會被視為 proposal output。Hidden reasoning 不會回灌正常 conversation，telemetry 也不依賴它。
 
+Frozen `planner-v1` prompt 明列完整 decision enum 與 scalar 規則：action values、`importance` values（`critical`、`high`、`medium`、`low`）、非空白 `reason`，以及只可用於 `COMPRESS` 的 positive-integer `targetTokens`。Strict parser 仍是最終 authority。
+
 ## Strict output 與 retry
 
 Raw output 一律不可信。Adapter 可移除一層 enclosing JSON code fence，但不修 JSON、不改寫 field，接著套用：
@@ -173,7 +175,21 @@ Correction message 只包含 machine-readable error code／path，不包含 inva
 
 `createPlannerSessionAudit(memory)` 透過既有 session JSONL channel 寫入 Planner events，不呼叫 project-memory 或 episode API。
 
-Attempt event 記錄 prompt version、inventory identity、estimated／observed tokens、visible／hidden unit counts、attempt、parse result、latency、error code 與 raw final-output content；不記錄 hidden reasoning。
+Attempt event 記錄 prompt version、inventory identity、每次 request 的 estimated／observed tokens、visible／hidden unit counts、attempt、parse result、latency、error code、failure category 與 raw final-output content。Binding／visibility／stale failure 的 parse result 為成功；client failure 則標示 parsing 未執行。Event 不記錄 hidden reasoning。
+
+Result-level `PlannerInputTokens`、`PlannerOutputTokens` 與 `PlannerLatencyMs` 會累計所有 Planner attempts。發生一次 correction 時，experiment cost 會反映兩次 request 的總成本，而不是只回報成功的 request。
+
+Failure telemetry 分開記錄 `failedAttempts` 與以下分類：
+
+| Category | 意義 |
+| --- | --- |
+| `protocolFailures` | malformed JSON、schema／duplicate violation 或 empty output |
+| `bindingFailures` | Runtime plan-ID challenge mismatch |
+| `visibilityFailures` | 對 `visibleUnitIds` 之外的 unit 提出 decision |
+| `clientFailures` | model transport／client failure |
+| `staleFailures` | proposal 綁定 stale inventory identity |
+
+`parseFailures` 保留為較窄的計數，只包含 malformed JSON、schema violation 與 duplicate decision；不包含 binding、visibility、client 或 stale failure。
 
 Result metrics：
 
@@ -184,6 +200,9 @@ PlannerLatencyMs
 VisibleUnits / HiddenUnits
 ExplicitDecisions / ImplicitKeeps
 ParseAttempts / ParseFailures
+FailedAttempts
+ProtocolFailures / BindingFailures / VisibilityFailures
+ClientFailures / StaleFailures
 AuthorizedDecisions / RejectedDecisions / AuditOnlyDecisions
 RejectionReasonDistribution
 PotentialReductionUpperBound / RequiredReductionTokens

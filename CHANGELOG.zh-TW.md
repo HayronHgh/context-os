@@ -13,7 +13,7 @@
 - Raw model output 經既有 strict CompactionPlan protocol parsing，並強制 Runtime plan-ID challenge、inventory identity 與 visible-only decisions。
 - Protocol／visibility／client failure 最多 correction 一次；stale inventory 立即 discard，Validator rejection 後直接停止。
 - 新增停在 `ValidatedPlan` 的 proposal orchestration，沒有 Transformer、Executor、context mutation、artifact creation 或 memory promotion。
-- Planner attempt／result telemetry 寫入 session audit，並計算 proposal authorization、illegal proposal、violation、token、latency 與 decision metrics。
+- Planner per-attempt 與 cumulative token／latency telemetry 寫入 session audit，分開 protocol、binding、visibility、client、stale failures，並計算 proposal authorization、illegal proposal、violation 與 decision metrics。
 - 新增 fake-client failure-mode tests、六 unit synthetic fixture、雙語 planning 文件與 llama.cpp／Qwen smoke tooling。
 - 記錄 dev.5 未來 execution 前必須進行 recovery-source revalidation 的 invariant。
 

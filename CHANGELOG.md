@@ -13,7 +13,7 @@ All notable changes to this project will be documented here.
 - Parse raw model output through the existing strict CompactionPlan protocol; enforce Runtime plan-ID challenge, inventory identity, and visible-only decisions.
 - Allow at most one protocol/visibility/client correction; discard stale inventories immediately and stop after Validator rejection.
 - Add proposal orchestration that ends at `ValidatedPlan`, with no Transformer, Executor, context mutation, artifact creation, or memory promotion.
-- Record Planner attempt/result telemetry in session audit and calculate proposal authorization, illegal-proposal, violation, token, latency, and decision metrics.
+- Record per-attempt and cumulative Planner token/latency telemetry in session audit; separate protocol, binding, visibility, client, and stale failures; and calculate proposal authorization, illegal-proposal, violation, and decision metrics.
 - Add fake-client failure-mode tests, a six-unit synthetic fixture, bilingual planning documentation, and llama.cpp/Qwen smoke tooling.
 - Document the dev.5 recovery-source revalidation invariant before any future execution.
 
