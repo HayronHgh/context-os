@@ -125,6 +125,12 @@ D3 再次檢查 exact inventory identity，以 Runtime 計算的 source-content 
 
 Model output 回來後，Runtime 才計算 candidate SHA-256 與 token estimate。Candidate 超出 target 會保留給 D4，不由 D3 retry 或 reject。Stale inventory 或任一 candidate generation failure 都會拒絕整份 preparation；messages、inventory、lifecycle、artifacts 與 memory 完全不 mutation。
 
+### Post-transform validation（`src/post-transform-validator.js`、`src/validated-transformation.js`、`src/qwen-transform-validator.js`）
+
+D4 將 candidate 綁回 exact `ExecutablePlan` 與 current inventory，要求每個 unit exactly once，並以目前 Runtime data 重新計算 source／candidate digest 與 candidate token estimate。Deterministic per-operation rules 會拒絕不合規的 NOOP、AUDIT_ONLY、REMOVE 與 EXTERNALIZE candidate；canonical recovery marker 比對 exact content，不只比 digest。COMPRESS candidate 必須非空、確實降低 estimated tokens，且不得超過 requested target。
+
+只有通過 mechanical checks 的 COMPRESS candidate 會進入 isolated、無 tools 的 `transform-validator-v1`。它只能針對 facts、constraints、decisions、identifiers、errors、unresolved state 與 meaning 是否保存回傳 ACCEPT／REJECT assessment，不能修改 content，也不能推翻 Runtime failure。任一 failure 都拒絕整份 transformation。成功只產生 deep-frozen `ValidatedTransformation`，不含 replacement content，並保持 `zeroMutation: true`、`actualReductionTokens: null`；D5 在任何 commit 前必須再將它綁回原始 candidate。
+
 ### Context Manager（`src/context-manager.js`）
 
 - 由 messages、tool schemas、tool choice 與固定安全餘量估算 prompt 使用率。

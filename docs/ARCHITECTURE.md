@@ -125,6 +125,12 @@ D3 rechecks exact inventory identity, binds every decision to a Runtime-computed
 
 Runtime computes candidate SHA-256 and token estimates after model output. Candidate target overshoot is retained for D4, not retried or rejected by D3. Any stale inventory or one candidate-generation failure rejects the whole preparation. No messages, inventory, lifecycle, artifacts, or memory are mutated.
 
+### Post-transform validation (`src/post-transform-validator.js`, `src/validated-transformation.js`, `src/qwen-transform-validator.js`)
+
+D4 binds the candidate back to the exact `ExecutablePlan` and current inventory, requires every unit exactly once, and recomputes source/candidate digests and candidate token estimates from current Runtime data. Deterministic per-operation rules reject malformed NOOP, AUDIT_ONLY, REMOVE, and EXTERNALIZE candidates; canonical recovery markers are compared by exact content rather than digest alone. COMPRESS candidates must be non-empty, actually reduce estimated tokens, and remain within the requested target.
+
+Only mechanically valid COMPRESS candidates reach the isolated, tool-free `transform-validator-v1`. It returns an assessment-only ACCEPT/REJECT verdict over preservation of facts, constraints, decisions, identifiers, errors, unresolved state, and meaning; it cannot rewrite content or override a Runtime failure. Any failure rejects the whole transformation. Success produces a deep-frozen `ValidatedTransformation` with no replacement content, `zeroMutation: true`, and `actualReductionTokens: null`; D5 must bind it back to the original candidate before any commit.
+
 ### Context manager (`src/context-manager.js`)
 
 - Estimates utilization from messages, tool schemas, tool choice, and fixed safety overhead.

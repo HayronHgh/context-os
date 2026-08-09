@@ -4,7 +4,7 @@
 
 Version: `0.2.0-dev.5`
 
-Status: D0 execution protocol through D3 TransformationCandidate implemented. Post-transform validation and mutation are absent.
+Status: D0 execution protocol through D4 Post-transform Validation implemented. Mutation is absent.
 
 ## Purpose
 
@@ -19,14 +19,14 @@ ExecutablePlan
       ↓
 Transformation Candidate
       ↓
-Post-transform Validation      (not implemented)
+Post-transform Validation
       ↓
 Atomic Execution               (not implemented)
       ↓
 ExecutionReport                (not implemented)
 ```
 
-The current implementation stops at an immutable `TransformationCandidate`. It describes future changes but does not validate or apply them.
+The current implementation stops at an immutable `ValidatedTransformation`. It approves a bound candidate for future execution but does not apply it.
 
 ## Core invariants
 
@@ -48,7 +48,7 @@ The layers answer different questions:
 | RecoveryVerifier | Is the Runtime recovery claim true now? |
 | ExecutionPreflight | Is the complete current plan eligible to proceed? |
 | Transformer | What candidate output could satisfy the authorized action? |
-| Future post-transform Validator | Is that candidate safe to commit? |
+| Post-transform Validator | Is that candidate safe to hand to D5? |
 | Future Executor | Can the validated candidate be applied atomically? |
 
 No later layer may reinterpret an earlier permission as broader authority.
@@ -230,6 +230,77 @@ interface TransformationCandidate {
 
 Failure returns `TRANSFORMATION_FAILED` or `TRANSFORMATION_STALE_INVENTORY`, `candidate: null`, `zeroMutation: true`, and no partial decision list.
 
+## D4 Post-transform Validation
+
+`validateTransformation()` first performs complete Runtime-owned mechanical validation. The semantic validator is never called unless all of these checks pass:
+
+1. candidate source ID exactly matches the `ExecutablePlan` ID;
+2. candidate, executable plan, and current inventory identities match;
+3. current inventory, executable decisions, and candidate decisions contain each unit exactly once;
+4. every action, operation, and requested target matches the executable decision;
+5. every source digest matches the current complete unit content;
+6. every candidate digest and token estimate matches Runtime recomputation;
+7. deterministic operation invariants and canonical EXTERNALIZE markers match exactly.
+
+Fixed operation rules are:
+
+| Action/operation | Required result |
+| --- | --- |
+| `KEEP / NOOP` | no candidate content, digest, or token estimate |
+| `PROMOTE_PROPOSAL / AUDIT_ONLY` | no candidate content, digest, or token estimate |
+| `EVICT / REMOVE` | no candidate content/digest; candidate tokens exactly zero |
+| `EXTERNALIZE / REPLACE` | content exactly equals the Runtime-recomputed canonical recovery marker |
+| `COMPRESS / REPLACE` | non-empty; estimated tokens positive, smaller than current source, and at or below requested target |
+
+Only mechanically valid COMPRESS decisions enter isolated `transform-validator-v1`. Its model-facing payload contains original content, candidate content, kind, authority, and protected reasons. It has no tools, disables thinking, uses independent budgets and temperature, and returns only:
+
+```json
+{"verdict":"ACCEPT","reasonCodes":[]}
+```
+
+or a REJECT verdict with one or more of:
+
+```text
+CONSTRAINT_LOST
+FACT_LOST
+DECISION_LOST
+IDENTIFIER_LOST
+ERROR_STATE_LOST
+UNRESOLVED_STATE_LOST
+FABRICATION_ADDED
+MEANING_CHANGED
+```
+
+The semantic model cannot modify candidate content, approve a mechanical failure, or widen execution authority. Any mechanical failure, semantic rejection, invalid semantic response, missing validator, or validator failure rejects the whole transformation.
+
+Successful validation emits a deep-frozen object that intentionally does not duplicate candidate content:
+
+```ts
+interface ValidatedTransformation {
+  schemaVersion: 1;
+  validationId: string;
+  sourceCandidateId: string;
+  inventory: InventoryIdentity;
+  status: "VALIDATED";
+  decisions: Array<{
+    unitId: string;
+    action: CompactionAction;
+    operation: "NOOP" | "REMOVE" | "REPLACE" | "AUDIT_ONLY";
+    permission: "APPROVED";
+    sourceContentDigest: `sha256:${string}`;
+    candidateContentDigest: `sha256:${string}` | null;
+    validatedCandidateTokens: number | null;
+  }>;
+  runtime: {
+    validatedAt: string;
+    zeroMutation: true;
+    actualReductionTokens: null;
+  };
+}
+```
+
+D5 must receive both this validation and the original `TransformationCandidate`, then bind `sourceCandidateId` and digests before any commit. Failure returns `TRANSFORMATION_REJECTED`, `validatedTransformation: null`, and no partial approval.
+
 ## Failure result
 
 Any gate failure returns:
@@ -244,9 +315,8 @@ Preflight reason codes include invalid shape, invalid or stale current inventory
 
 ## Zero-mutation boundary
 
-D0-D3 explicitly exclude:
+D0-D4 explicitly exclude:
 
-- post-transform approval;
 - message or Context Unit mutation;
 - artifact, project-memory, or episode writes;
 - lifecycle or authority mutation;
@@ -258,9 +328,8 @@ The implementation is read-only except for ordinary test fixtures created in tem
 ## Remaining dev.5 sequence
 
 ```text
-D4  Post-transform Validator
 D5  Atomic Executor
 D6  Inventory rebuild + actual re-tokenization + ExecutionReport
 ```
 
-D4 must validate candidate output independently, including semantic preservation and target acceptance. D5 is the first stage permitted to mutate active context.
+D5 is the first stage permitted to mutate active context. It must not treat `ValidatedTransformation` as self-contained replacement content.

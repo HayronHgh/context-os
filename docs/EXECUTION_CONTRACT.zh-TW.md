@@ -4,7 +4,7 @@
 
 版本：`0.2.0-dev.5`
 
-狀態：D0 execution protocol 至 D3 TransformationCandidate 已實作；尚無 post-transform validation 與 mutation。
+狀態：D0 execution protocol 至 D4 Post-transform Validation 已實作；尚無 mutation。
 
 ## 目的
 
@@ -19,14 +19,14 @@ ExecutablePlan
       ↓
 Transformation Candidate
       ↓
-Post-transform Validation      （未實作）
+Post-transform Validation
       ↓
 Atomic Execution               （未實作）
       ↓
 ExecutionReport                （未實作）
 ```
 
-目前實作停在 immutable `TransformationCandidate`；它只描述未來可能的變更，不驗證也不套用變更。
+目前實作停在 immutable `ValidatedTransformation`；它只核准一份 bound candidate 可交給未來 execution，不套用變更。
 
 ## 核心 invariants
 
@@ -48,7 +48,7 @@ COMPRESS authorization
 | RecoveryVerifier | Runtime recovery claim 此刻是否成立？ |
 | ExecutionPreflight | 完整 current plan 是否可繼續？ |
 | Transformer | 哪個 candidate output 可能符合 authorized action？ |
-| Future post-transform Validator | Candidate 是否安全到可 commit？ |
+| Post-transform Validator | Candidate 是否安全到可交給 D5？ |
 | Future Executor | 已驗證 candidate 能否 atomic apply？ |
 
 後層不得把前層 permission 解讀成更大的 authority。
@@ -230,6 +230,77 @@ interface TransformationCandidate {
 
 Failure 回傳 `TRANSFORMATION_FAILED` 或 `TRANSFORMATION_STALE_INVENTORY`、`candidate: null`、`zeroMutation: true`，且沒有 partial decision list。
 
+## D4 Post-transform Validation
+
+`validateTransformation()` 先完成全部 Runtime-owned mechanical validation。以下檢查全數通過前，semantic validator 絕不會被呼叫：
+
+1. candidate source ID 與 `ExecutablePlan` ID 完全相同；
+2. candidate、executable plan 與 current inventory identity 相同；
+3. current inventory、executable decisions、candidate decisions 對每個 unit 都恰好一次；
+4. 每個 action、operation 與 requested target 都和 executable decision 相同；
+5. 每個 source digest 都符合 current complete unit content；
+6. 每個 candidate digest 與 token estimate 都符合 Runtime 重算；
+7. deterministic operation invariants 與 canonical EXTERNALIZE marker 完全相同。
+
+固定 operation 規則：
+
+| Action/operation | 必須符合 |
+| --- | --- |
+| `KEEP / NOOP` | 沒有 candidate content、digest 或 token estimate |
+| `PROMOTE_PROPOSAL / AUDIT_ONLY` | 沒有 candidate content、digest 或 token estimate |
+| `EVICT / REMOVE` | 沒有 candidate content／digest；candidate tokens 必須為零 |
+| `EXTERNALIZE / REPLACE` | content 完全等於 Runtime 重算的 canonical recovery marker |
+| `COMPRESS / REPLACE` | 非空白；estimated tokens 必須為正、小於 current source，且不超過 requested target |
+
+只有 mechanically valid 的 COMPRESS decision 會進入 isolated `transform-validator-v1`。Model-facing payload 只包含 original content、candidate content、kind、authority 與 protected reasons；不提供 tools、關閉 thinking，並使用獨立 budgets 與 temperature。輸出只能是：
+
+```json
+{"verdict":"ACCEPT","reasonCodes":[]}
+```
+
+或帶有下列一個以上 reason code 的 REJECT：
+
+```text
+CONSTRAINT_LOST
+FACT_LOST
+DECISION_LOST
+IDENTIFIER_LOST
+ERROR_STATE_LOST
+UNRESOLVED_STATE_LOST
+FABRICATION_ADDED
+MEANING_CHANGED
+```
+
+Semantic model 無法修改 candidate content、核准 mechanical failure 或擴張 execution authority。任何 mechanical failure、semantic rejection、invalid semantic response、validator 缺失或 validator failure，都會拒絕整份 transformation。
+
+成功時輸出 deep-frozen object，且刻意不複製 candidate content：
+
+```ts
+interface ValidatedTransformation {
+  schemaVersion: 1;
+  validationId: string;
+  sourceCandidateId: string;
+  inventory: InventoryIdentity;
+  status: "VALIDATED";
+  decisions: Array<{
+    unitId: string;
+    action: CompactionAction;
+    operation: "NOOP" | "REMOVE" | "REPLACE" | "AUDIT_ONLY";
+    permission: "APPROVED";
+    sourceContentDigest: `sha256:${string}`;
+    candidateContentDigest: `sha256:${string}` | null;
+    validatedCandidateTokens: number | null;
+  }>;
+  runtime: {
+    validatedAt: string;
+    zeroMutation: true;
+    actualReductionTokens: null;
+  };
+}
+```
+
+D5 必須同時取得這份 validation 與原始 `TransformationCandidate`，並在任何 commit 前綁定 `sourceCandidateId` 與 digests。Failure 回傳 `TRANSFORMATION_REJECTED`、`validatedTransformation: null`，且沒有 partial approval。
+
 ## Failure result
 
 任一 gate failure 都回傳：
@@ -244,9 +315,8 @@ Preflight reason codes 包含 invalid shape、invalid／stale current inventory�
 
 ## Zero-mutation boundary
 
-D0-D3 明確排除：
+D0-D4 明確排除：
 
-- post-transform approval；
 - message 或 Context Unit mutation；
 - artifact、project-memory 或 episode write；
 - lifecycle 或 authority mutation；
@@ -258,9 +328,8 @@ D0-D3 明確排除：
 ## 剩餘 dev.5 sequence
 
 ```text
-D4  Post-transform Validator
 D5  Atomic Executor
 D6  Inventory rebuild + actual re-tokenization + ExecutionReport
 ```
 
-D4 必須獨立驗證 candidate output，包括 semantic preservation 與 target acceptance；D5 才是第一個可 mutation active context 的 stage。
+D5 才是第一個可 mutation active context 的 stage；它不能把 `ValidatedTransformation` 當成 self-contained replacement content。

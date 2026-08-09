@@ -17,7 +17,10 @@ All notable changes to this project will be documented here.
 - Map KEEP, PROMOTE_PROPOSAL, EVICT, and EXTERNALIZE deterministically; canonical recovery markers come only from Runtime recovery references/proofs.
 - Add isolated, tool-free, bounded `transformer-v1` generation only for COMPRESS, with strict `{ content }` output and one schema-only repair.
 - Compute source/candidate SHA-256 digests and candidate token estimates in Runtime; oversize candidates remain prepared for D4 to judge.
-- Document the D0-D3 contract bilingually; post-transform validation, Executor, mutation, rebuild, and actual re-tokenization remain absent.
+- Add Runtime-first D4 validation for exact Candidate/ExecutablePlan/Inventory binding, recomputed digests/tokens, deterministic operation invariants, canonical EXTERNALIZE markers, and COMPRESS reduction/target gates.
+- Add isolated, tool-free `transform-validator-v1` semantic preservation assessment with fixed reason codes; it cannot edit candidates or override mechanical failures.
+- Emit an immutable whole-plan `ValidatedTransformation`, or `TRANSFORMATION_REJECTED` with no partial approval.
+- Document the D0-D4 contract bilingually; Executor, mutation, rebuild, and actual re-tokenization remain absent.
 
 ## [0.2.0-dev.4] - 2026-08-10
 

@@ -322,7 +322,7 @@ Semantic Planner healthy?
 
 Semantic intelligence 必須允許故障，而 ContextOS 仍能安全工作。
 
-## M5：Validated Transformation and Execution — D0-D3 已實作
+## M5：Validated Transformation and Execution — D0-D4 已實作
 
 M3 authorization 證明 policy eligibility，不代表 recovery source 此刻仍存在。Dev.5 新增另一層 permission boundary：
 
@@ -331,14 +331,16 @@ ValidatedPlan
   -> Execution Preflight
   -> ExecutablePlan
   -> TransformationCandidate
-  -> post-transform validation     （D4，未實作）
+  -> ValidatedTransformation       （D4）
   -> atomic execution              （D5，未實作）
   -> inventory rebuild/re-tokenize （D6，未實作）
 ```
 
-D0-D3 是 zero-mutation。Strict preflight 只接受 current、potentially sufficient、non-fallback 且完整覆蓋 inventory 的 ValidatedPlan。Artifact recovery 要求存在與 integrity；repository recovery 要求 contained、valid current source/path；memory recovery 要求 referenced state 存在；rebuildable recovery 要求 mechanism 可用。任一 failure 都回傳 `EXECUTION_PRECONDITION_FAILED`，且不產生 `ExecutablePlan`。
+D0-D4 是 zero-mutation。Strict preflight 只接受 current、potentially sufficient、non-fallback 且完整覆蓋 inventory 的 ValidatedPlan。Artifact recovery 要求存在與 integrity；repository recovery 要求 contained、valid current source/path；memory recovery 要求 referenced state 存在；rebuildable recovery 要求 mechanism 可用。任一 failure 都回傳 `EXECUTION_PRECONDITION_FAILED`，且不產生 `ExecutablePlan`。
 
 D3 再次檢查 inventory identity，在完全不改 Runtime state 的前提下具體化每個 executable action。KEEP／PROMOTE_PROPOSAL 成為 NOOP／AUDIT_ONLY，EVICT 成為描述性的 REMOVE，EXTERNALIZE 使用 deterministic recovery marker。只有 COMPRESS 使用 isolated `transformer-v1`；source／candidate digest 與 token estimate 由 Runtime 計算，semantic preservation 與 target compliance 只由 D4 判斷。任一 failure 都拒絕整份 candidate。
+
+D4 將 candidate 綁回 exact `ExecutablePlan` 與 current inventory，要求 exact unit coverage，並重新計算 source／candidate hashes 與 token estimates。Runtime 先強制 operation-specific invariants 與 exact canonical EXTERNALIZE marker，之後 COMPRESS candidate 才能進入 isolated、無 tools 的 `transform-validator-v1`。Semantic model 只能評估 preservation，不能修改 content，也不能推翻 mechanical failure。任一 failure 都拒絕整份 transformation；成功只產生 immutable、不含 content 的 `ValidatedTransformation`，保持 zero mutation，且不宣稱 actual reduction。
 
 `ValidatedPlan != ExecutablePlan`；recoverability classification 不等於 recovery proof；COMPRESS permission 不授權 arbitrary replacement content。完整 contract 與 frozen M4 manifest 記錄於 [Validated Transformation and Execution Contract](../EXECUTION_CONTRACT.zh-TW.md)。
 
@@ -374,10 +376,10 @@ SCU  = CG * WIR
 | M2 | Planner protocol | Strict schema 與 fake-plan fixtures |
 | M3 | Runtime Validator | Proposal 不等於 permission；fail-closed tests |
 | M4 | Qwen Planner | Bounded inventory、strict output、fallback |
-| M5 | Validated Transformation/Execution | D0-D3 candidate preparation 已實作；D4-D6 validation 與 abort-safe execution 待完成 |
+| M5 | Validated Transformation/Execution | D0-D4 candidate preparation 與 validation 已實作；D5-D6 abort-safe execution 待完成 |
 | RC | A/B/C benchmark | 相同 control envelope；公開 raw results |
 
-M0/M1 於 `0.2.0-dev.1` 完成，M2 於 `0.2.0-dev.2`、M3 於 `0.2.0-dev.3`、bounded proposal generation 於 `0.2.0-dev.4` 完成，`0.2.0-dev.5` 則完成至 D3 的 zero-mutation execution preparation。各階段維持 independently reviewable；dev.1–dev.5 D0-D3 都不執行 semantic plan。
+M0/M1 於 `0.2.0-dev.1` 完成，M2 於 `0.2.0-dev.2`、M3 於 `0.2.0-dev.3`、bounded proposal generation 於 `0.2.0-dev.4` 完成，`0.2.0-dev.5` 則完成至 D4 的 zero-mutation execution preparation 與 validation。各階段維持 independently reviewable；dev.1–dev.5 D0-D4 都不執行 semantic plan。
 
 ## 影響
 

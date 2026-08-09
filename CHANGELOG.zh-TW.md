@@ -17,7 +17,10 @@
 - KEEP、PROMOTE_PROPOSAL、EVICT、EXTERNALIZE 全部 deterministic mapping；canonical recovery marker 只由 Runtime recovery reference／proof 建立。
 - 只有 COMPRESS 使用 isolated、無 tools、bounded `transformer-v1`，strict output 僅含 `{ content }`，最多一次 schema-only repair。
 - Source／candidate SHA-256 digest 與 candidate token estimate 全由 Runtime 計算；超出 target 的 candidate 仍交由 D4 判斷。
-- 新增雙語 D0-D3 contract；仍無 post-transform validation、Executor、mutation、rebuild 或 actual re-tokenization。
+- 新增 Runtime-first D4 validation：exact Candidate／ExecutablePlan／Inventory binding、重算 digest／token、deterministic operation invariants、canonical EXTERNALIZE marker，以及 COMPRESS reduction／target gates。
+- 新增 isolated、無 tools `transform-validator-v1` semantic preservation assessment 與固定 reason codes；模型無法修改 candidate，也無法 override mechanical failure。
+- 成功產生 immutable whole-plan `ValidatedTransformation`；否則以 `TRANSFORMATION_REJECTED` 整份拒絕，不做 partial approval。
+- 新增雙語 D0-D4 contract；仍無 Executor、mutation、rebuild 或 actual re-tokenization。
 
 ## [0.2.0-dev.4] - 2026-08-10
 

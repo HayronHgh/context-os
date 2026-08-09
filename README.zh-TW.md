@@ -33,9 +33,9 @@ Prompt Context   = 可拋棄的工作視圖
 
 ## 目前狀態
 
-**Experimental · v0.2.0-dev.5 D0-D3 Transformation Candidates · Windows-first**
+**Experimental · v0.2.0-dev.5 D0-D4 Post-transform Validation · Windows-first**
 
-Deterministic 控制組仍凍結在 [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2)，M4 experiment inputs 則固定於 `aa59f4d`。v0.2 開發線目前已能產生 immutable、zero-mutation `TransformationCandidate`：KEEP、PROMOTE_PROPOSAL、EVICT、EXTERNALIZE 由 Runtime deterministic mapping，只有 COMPRESS 使用 isolated `transformer-v1`。Post-transform acceptance、execution、context mutation、artifact creation 與 memory promotion 仍不存在。
+Deterministic 控制組仍凍結在 [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2)，M4 experiment inputs 則固定於 `aa59f4d`。v0.2 開發線目前已到 immutable、zero-mutation `ValidatedTransformation`：Runtime 先重查 candidate／plan／inventory binding、digests、tokens、deterministic operations 與 canonical recovery marker，再由 isolated `transform-validator-v1` 評估 COMPRESS semantic preservation。Execution、context mutation、artifact creation 與 memory promotion 仍不存在。
 
 已驗證環境：
 
@@ -75,6 +75,9 @@ Runtime 沒有綁死特定模型名稱，但 backend 必須回傳 OpenAI-style c
 - Runtime-owned source／candidate SHA-256 binding 與 deterministic non-COMPRESS candidates
 - 使用一次 schema-only repair、無 tools 的 isolated `transformer-v1` COMPRESS generation
 - 不具 execution authority 的 whole-plan immutable `TransformationCandidate`
+- Runtime-first post-transform gates：exact binding、digests、token estimates、operation rules 與 compression targets
+- 僅供 COMPRESS 使用的 isolated、無 tools `transform-validator-v1` semantic preservation assessment
+- Whole-plan immutable `ValidatedTransformation`；任何 mechanical 或 semantic failure 都整份拒絕
 - File 與 artifact tools 依 real path 檢查的 project-root 路徑限制
 - 寫檔、編輯與 shell command 人工確認
 - 破壞性命令 guardrails
