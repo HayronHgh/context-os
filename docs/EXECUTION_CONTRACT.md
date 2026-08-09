@@ -4,7 +4,7 @@
 
 Version: `0.2.0-dev.5`
 
-Status: D0 execution protocol through D4 Post-transform Validation implemented. Mutation is absent.
+Status: D0 execution protocol through D5 Atomic Execution implemented. D6 rebuild/accounting remains absent.
 
 ## Purpose
 
@@ -21,12 +21,12 @@ Transformation Candidate
       ↓
 Post-transform Validation
       ↓
-Atomic Execution               (not implemented)
+Atomic Execution
       ↓
-ExecutionReport                (not implemented)
+ExecutionResult
 ```
 
-The current implementation stops at an immutable `ValidatedTransformation`. It approves a bound candidate for future execution but does not apply it.
+The current implementation stops after D5 returns an immutable committed or aborted `ExecutionResult`. D5 is the only layer in this chain allowed to mutate the active message context; D6 inventory rebuild and actual re-tokenization remain separate.
 
 ## Core invariants
 
@@ -49,7 +49,7 @@ The layers answer different questions:
 | ExecutionPreflight | Is the complete current plan eligible to proceed? |
 | Transformer | What candidate output could satisfy the authorized action? |
 | Post-transform Validator | Is that candidate safe to hand to D5? |
-| Future Executor | Can the validated candidate be applied atomically? |
+| Atomic Executor | Can the exact validated candidate be applied atomically now? |
 
 No later layer may reinterpret an earlier permission as broader authority.
 
@@ -299,7 +299,106 @@ interface ValidatedTransformation {
 }
 ```
 
-D5 must receive both this validation and the original `TransformationCandidate`, then bind `sourceCandidateId` and digests before any commit. Failure returns `TRANSFORMATION_REJECTED`, `validatedTransformation: null`, and no partial approval.
+D5 receives both this validation and the original `TransformationCandidate`, then binds `sourceCandidateId` and digests before any commit. D4 failure returns `TRANSFORMATION_REJECTED`, `validatedTransformation: null`, and no partial approval.
+
+## D5 Atomic Executor
+
+`AtomicExecutor.execute()` is deterministic and model-free. It requires:
+
+```ts
+{
+  validatedTransformation,
+  candidate,
+  executablePlan,
+  inventory,
+  context: {
+    messages,
+    contextGeneration
+  },
+  recoveryVerifier
+}
+```
+
+`ValidatedTransformation` is approval metadata, not an execution capability by itself. Before any mutation, Runtime requires this exact chain:
+
+```text
+validation.sourceCandidateId == candidate.candidateId
+candidate.sourceExecutablePlanId == executablePlan.executablePlanId
+validation.inventory == candidate.inventory
+                     == executablePlan.inventory
+                     == current inventory
+```
+
+Every current Context Unit must occur exactly once in Runtime-owned messages. Untracked Runtime messages, such as the ordinary system prompt, remain unchanged. For every tracked unit, Runtime recomputes the current source SHA-256 and compares it with both D3 and D4. Every REPLACE operation hashes the exact `candidate.candidateContent` again and compares it with the D3/D4 candidate digest.
+
+### Fresh recovery and TOCTOU gate
+
+D2 recovery proof is point-in-time evidence, not a lease. Immediately before commit, D5 reruns `RecoveryVerifier` for every destructive action:
+
+```text
+EVICT
+EXTERNALIZE
+COMPRESS
+```
+
+A D2 `VERIFIED` decision must still be `VERIFIED`; a legitimate no-recovery-claim decision must still be `NOT_REQUIRED`. Missing sources, provider failure, integrity drift, thrown verification, or changed classification aborts the entire execution.
+
+The commit target exposes a monotonically increasing `contextGeneration`. D5 records both generation and the message-array reference before asynchronous recovery checks, then requires both to remain unchanged. It also reruns the complete chain and content bindings after the final `await`. Any drift returns `EXECUTION_STALE_CONTEXT`.
+
+### Clone, build, validate, swap
+
+D5 never edits the live array decision by decision. It applies every operation to a complete clone:
+
+| Operation | Commit behavior |
+| --- | --- |
+| `NOOP` | Preserve the original message exactly |
+| `AUDIT_ONLY` | Preserve the original message exactly; no memory write |
+| `REMOVE` | Omit exactly the bound source message |
+| `REPLACE` | Set content to the exact validated `candidate.candidateContent` |
+
+The complete next context must preserve valid assistant tool-call/result structure. Only after clone/build and every pre-commit check succeeds does D5 synchronously replace the Runtime-owned message-array reference and increment `contextGeneration`. There is no `await` in this critical section.
+
+Each `validationId` is single-use within its `AtomicExecutor`. In-flight reuse fails closed. Successful context commit and validation consumption occur in the same synchronous critical section; a second execution returns `EXECUTION_ALREADY_CONSUMED`.
+
+### ExecutionResult
+
+Success returns a deep-frozen result:
+
+```ts
+interface ExecutionResult {
+  schemaVersion: 1;
+  executionId: string;
+  sourceValidationId: string;
+  status: "COMMITTED";
+  inventoryBefore: InventoryIdentity;
+  operations: Array<{
+    unitId: string;
+    operation: "NOOP" | "REMOVE" | "REPLACE" | "AUDIT_ONLY";
+  }>;
+  committed: true;
+  runtime: {
+    committedAt: string;
+    contextGenerationBefore: number;
+    contextGenerationAfter: number;
+  };
+}
+```
+
+Failure returns `status: "EXECUTION_ABORTED"`, `committed: false`, an immutable diagnostic check list, and one or more bounded reason codes:
+
+```text
+INVALID_VALIDATED_TRANSFORMATION
+EXECUTION_CHAIN_MISMATCH
+EXECUTION_STALE_CONTEXT
+SOURCE_CONTENT_CHANGED
+CANDIDATE_CONTENT_CHANGED
+RECOVERY_REVALIDATION_FAILED
+EXECUTION_ALREADY_CONSUMED
+EXECUTION_BUILD_FAILED
+EXECUTION_COMMIT_FAILED
+```
+
+Executor failures never expose the prepared clone or partially apply an operation.
 
 ## Failure result
 
@@ -323,13 +422,12 @@ D0-D4 explicitly exclude:
 - inventory rebuild;
 - actual re-tokenization or actual-reduction claims.
 
-The implementation is read-only except for ordinary test fixtures created in temporary directories.
+These guarantees remain true through D4. D5 may replace only the active message-array reference after all gates pass. It still performs no artifact, memory, lifecycle, authority, inventory, or accounting write.
 
 ## Remaining dev.5 sequence
 
 ```text
-D5  Atomic Executor
 D6  Inventory rebuild + actual re-tokenization + ExecutionReport
 ```
 
-D5 is the first stage permitted to mutate active context. It must not treat `ValidatedTransformation` as self-contained replacement content.
+D6 must rebuild Context Inventory from the committed messages, perform actual re-tokenization, calculate actual reduction, and attach those measurements without changing the D5 authorization boundary.

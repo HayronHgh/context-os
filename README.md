@@ -33,9 +33,9 @@ The goal is simple: a conversation may be compacted or reset without killing the
 
 ## Status
 
-**Experimental · v0.2.0-dev.5 D0-D4 Post-transform Validation · Windows-first**
+**Experimental · v0.2.0-dev.5 D0-D5 Atomic Execution · Windows-first**
 
-The deterministic control remains frozen at [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2), and M4 experiment inputs are pinned to `aa59f4d`. The v0.2 development line now reaches immutable zero-mutation `ValidatedTransformation`: Runtime rechecks candidate/plan/inventory binding, digests, tokens, deterministic operations, and canonical recovery markers before isolated `transform-validator-v1` assesses COMPRESS semantic preservation. Execution, context mutation, artifact creation, and memory promotion remain absent.
+The deterministic control remains frozen at [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2), and M4 experiment inputs are pinned to `aa59f4d`. The v0.2 development line now reaches model-free atomic context execution: D5 rebinds the complete D2-D4 chain, source/candidate bytes, current recovery sources, single-use validation state, and context generation before building a complete clone and committing one message-array reference swap. D6 inventory rebuild, actual re-tokenization, artifact creation, and memory promotion remain absent.
 
 Tested with:
 
@@ -78,6 +78,9 @@ The runtime is not tied to a specific model name, but the backend must return Op
 - Runtime-first post-transform gates for exact binding, digests, token estimates, operation rules, and compression targets
 - Isolated tool-free `transform-validator-v1` semantic preservation assessment for COMPRESS only
 - Whole-plan immutable `ValidatedTransformation`; any mechanical or semantic failure rejects everything
+- Model-free D5 pre-commit revalidation of the complete Validation/Candidate/Plan/Inventory chain
+- Single-use, generation-guarded Atomic Executor with whole-plan clone/build and one reference-swap commit
+- Immutable `ExecutionResult`; stale context, recovery drift, or any build failure aborts without partial mutation
 - Real-path-aware project-root containment for file and artifact tools
 - Approval prompts for writes, edits, and shell commands
 - Destructive-command guardrails

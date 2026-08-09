@@ -322,7 +322,7 @@ Semantic Planner healthy?
 
 Semantic intelligence must be allowed to fail while ContextOS continues to work safely.
 
-## M5: Validated Transformation and Execution — D0-D4 implemented
+## M5: Validated Transformation and Execution — D0-D5 implemented
 
 M3 authorization proves policy eligibility, not current recovery-source existence. Dev.5 adds another permission boundary:
 
@@ -332,7 +332,7 @@ ValidatedPlan
   -> ExecutablePlan
   -> TransformationCandidate
   -> ValidatedTransformation       (D4)
-  -> atomic execution              (D5, not implemented)
+  -> atomic execution              (D5)
   -> inventory rebuild/re-tokenize (D6, not implemented)
 ```
 
@@ -345,6 +345,8 @@ D4 binds the candidate to the exact `ExecutablePlan` and current inventory, requ
 `ValidatedPlan != ExecutablePlan`; recoverability classification is not recovery proof; COMPRESS permission does not authorize arbitrary replacement content. The exact contract and frozen M4 manifest are documented in [Validated Transformation and Execution Contract](../EXECUTION_CONTRACT.md).
 
 Recovery proof is point-in-time evidence rather than a lease. D5 must rerun preflight immediately before commit or atomically recheck the bound inventory and sources; an `ExecutablePlan` is single-use and stale bindings abort the whole execution.
+
+D5 is a model-free exact executor. It rebinds Validation/Candidate/ExecutablePlan/current Inventory, hashes the current source and exact candidate bytes again, and reruns destructive-action recovery verification. All operations are built on a complete message clone and checked for tool-call structure. A context-generation/reference guard closes the asynchronous recovery TOCTOU window; only then does Runtime perform one synchronous message-array reference swap and consume the validation ID. Any failure returns `EXECUTION_ABORTED` with no partial executor mutation. D6 alone owns inventory rebuild, actual re-tokenization, and reduction measurement.
 
 ## Release-candidate benchmark design
 
@@ -376,10 +378,10 @@ Metrics are reported separately. SCU is a convenience composite, not a replaceme
 | M2 | Planner protocol | Strict schema and fake-plan fixtures |
 | M3 | Runtime Validator | Proposal is never permission; fail-closed tests |
 | M4 | Qwen Planner | Bounded inventory, strict output, fallback |
-| M5 | Validated Transformation/Execution | D0-D4 candidate preparation and validation implemented; D5-D6 abort-safe execution pending |
+| M5 | Validated Transformation/Execution | D0-D5 validated atomic execution implemented; D6 rebuild/accounting pending |
 | RC | A/B/C benchmark | Same control envelope; publish raw results |
 
-M0/M1 shipped in `0.2.0-dev.1`, M2 in `0.2.0-dev.2`, M3 in `0.2.0-dev.3`, bounded proposal generation in `0.2.0-dev.4`, and zero-mutation execution preparation and validation through D4 in `0.2.0-dev.5`. Each remains independently reviewable. Dev.1–dev.5 D0-D4 do not execute semantic plans.
+M0/M1 shipped in `0.2.0-dev.1`, M2 in `0.2.0-dev.2`, M3 in `0.2.0-dev.3`, bounded proposal generation in `0.2.0-dev.4`, and validated atomic execution through D5 in `0.2.0-dev.5`. Each remains independently reviewable. D0-D4 are zero-mutation; D5 is the sole deterministic message-context commit boundary and never calls a model.
 
 ## Consequences
 

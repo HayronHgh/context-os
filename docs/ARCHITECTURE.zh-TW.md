@@ -131,6 +131,12 @@ D4 將 candidate 綁回 exact `ExecutablePlan` 與 current inventory，要求每
 
 只有通過 mechanical checks 的 COMPRESS candidate 會進入 isolated、無 tools 的 `transform-validator-v1`。它只能針對 facts、constraints、decisions、identifiers、errors、unresolved state 與 meaning 是否保存回傳 ACCEPT／REJECT assessment，不能修改 content，也不能推翻 Runtime failure。任一 failure 都拒絕整份 transformation。成功只產生 deep-frozen `ValidatedTransformation`，不含 replacement content，並保持 `zeroMutation: true`、`actualReductionTokens: null`；D5 在任何 commit 前必須再將它綁回原始 candidate。
 
+### Atomic execution（`src/atomic-executor.js`、`src/execution-result.js`）
+
+D5 完全 model-free，並將 `ValidatedTransformation` 視為 approval metadata，而非 self-contained capability。`AtomicExecutor` 要求原始 candidate 與 executable plan、exact current inventory identity 與 unit coverage、Runtime-owned messages、writable context generation，以及 `RecoveryVerifier`；commit 前會重查每個 source／candidate SHA-256，並重新驗證 destructive action 的 current recovery source。
+
+所有 NOOP、AUDIT_ONLY、REMOVE 與 exact REPLACE operation 都先套用到完整 cloned message context。Runtime 驗證 tool-call structure、偵測 asynchronous recovery checks 期間的 generation／reference drift，最後只做一次 synchronous message-array reference swap，並在同一 critical section consume validation ID。任何 stale binding、recovery source 消失、build failure、validation 重複使用或 commit failure，都回傳 immutable `EXECUTION_ABORTED`，不留下 partial executor mutation。D6 inventory rebuild 與 actual re-tokenization 仍不存在。
+
 ### Context Manager（`src/context-manager.js`）
 
 - 由 messages、tool schemas、tool choice 與固定安全餘量估算 prompt 使用率。

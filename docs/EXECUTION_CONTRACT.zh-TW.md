@@ -4,7 +4,7 @@
 
 版本：`0.2.0-dev.5`
 
-狀態：D0 execution protocol 至 D4 Post-transform Validation 已實作；尚無 mutation。
+狀態：D0 execution protocol 至 D5 Atomic Execution 已實作；D6 rebuild／accounting 仍不存在。
 
 ## 目的
 
@@ -21,12 +21,12 @@ Transformation Candidate
       ↓
 Post-transform Validation
       ↓
-Atomic Execution               （未實作）
+Atomic Execution
       ↓
-ExecutionReport                （未實作）
+ExecutionResult
 ```
 
-目前實作停在 immutable `ValidatedTransformation`；它只核准一份 bound candidate 可交給未來 execution，不套用變更。
+目前實作在 D5 回傳 immutable committed／aborted `ExecutionResult` 後停止。D5 是這條 chain 唯一能 mutation active message context 的 layer；D6 inventory rebuild 與 actual re-tokenization 仍是獨立階段。
 
 ## 核心 invariants
 
@@ -49,7 +49,7 @@ COMPRESS authorization
 | ExecutionPreflight | 完整 current plan 是否可繼續？ |
 | Transformer | 哪個 candidate output 可能符合 authorized action？ |
 | Post-transform Validator | Candidate 是否安全到可交給 D5？ |
-| Future Executor | 已驗證 candidate 能否 atomic apply？ |
+| Atomic Executor | Exact validated candidate 此刻能否 atomic apply？ |
 
 後層不得把前層 permission 解讀成更大的 authority。
 
@@ -299,7 +299,106 @@ interface ValidatedTransformation {
 }
 ```
 
-D5 必須同時取得這份 validation 與原始 `TransformationCandidate`，並在任何 commit 前綁定 `sourceCandidateId` 與 digests。Failure 回傳 `TRANSFORMATION_REJECTED`、`validatedTransformation: null`，且沒有 partial approval。
+D5 同時取得這份 validation 與原始 `TransformationCandidate`，並在任何 commit 前綁定 `sourceCandidateId` 與 digests。D4 failure 回傳 `TRANSFORMATION_REJECTED`、`validatedTransformation: null`，且沒有 partial approval。
+
+## D5 Atomic Executor
+
+`AtomicExecutor.execute()` 完全 deterministic、model-free，要求：
+
+```ts
+{
+  validatedTransformation,
+  candidate,
+  executablePlan,
+  inventory,
+  context: {
+    messages,
+    contextGeneration
+  },
+  recoveryVerifier
+}
+```
+
+`ValidatedTransformation` 只是 approval metadata，不能單獨當 execution capability。任何 mutation 前，Runtime 要求以下 exact chain：
+
+```text
+validation.sourceCandidateId == candidate.candidateId
+candidate.sourceExecutablePlanId == executablePlan.executablePlanId
+validation.inventory == candidate.inventory
+                     == executablePlan.inventory
+                     == current inventory
+```
+
+每個 current Context Unit 必須在 Runtime-owned messages 中 exactly once。一般 system prompt 等未追蹤 Runtime message 保持不變。每個 tracked unit 都由 Runtime 重算 current source SHA-256，並同時比對 D3 與 D4；每個 REPLACE operation 也重新 hash exact `candidate.candidateContent`，比對 D3／D4 candidate digest。
+
+### Fresh recovery 與 TOCTOU gate
+
+D2 recovery proof 是 point-in-time evidence，不是 lease。D5 在 commit 前立即為所有 destructive action 重跑 `RecoveryVerifier`：
+
+```text
+EVICT
+EXTERNALIZE
+COMPRESS
+```
+
+D2 `VERIFIED` decision 此刻仍必須是 `VERIFIED`；合法的 no-recovery-claim decision 此刻仍必須是 `NOT_REQUIRED`。Source 消失、provider failure、integrity drift、verification throw 或 classification 改變，都會 abort 整份 execution。
+
+Commit target 提供 monotonically increasing `contextGeneration`。D5 在 asynchronous recovery checks 前保存 generation 與 message-array reference，回來後要求兩者完全不變，並在最後一個 `await` 後重跑完整 chain 與 content bindings。任何 drift 都回傳 `EXECUTION_STALE_CONTEXT`。
+
+### Clone、build、validate、swap
+
+D5 不會逐 decision 修改 live array，而是將所有 operation 套用到完整 clone：
+
+| Operation | Commit behavior |
+| --- | --- |
+| `NOOP` | 完整保留原 message |
+| `AUDIT_ONLY` | 完整保留原 message；不寫 memory |
+| `REMOVE` | 只省略 exact bound source message |
+| `REPLACE` | 將 content 設為 exact validated `candidate.candidateContent` |
+
+完整 next context 必須維持有效的 assistant tool-call／result structure。只有 clone/build 與所有 pre-commit checks 成功後，D5 才 synchronously 替換 Runtime-owned message-array reference 並增加 `contextGeneration`；critical section 內沒有 `await`。
+
+每個 `validationId` 在其 `AtomicExecutor` 內只能使用一次，in-flight reuse 也 fail closed。Successful context commit 與 validation consumption 位於同一個 synchronous critical section；第二次 execution 回傳 `EXECUTION_ALREADY_CONSUMED`。
+
+### ExecutionResult
+
+成功回傳 deep-frozen result：
+
+```ts
+interface ExecutionResult {
+  schemaVersion: 1;
+  executionId: string;
+  sourceValidationId: string;
+  status: "COMMITTED";
+  inventoryBefore: InventoryIdentity;
+  operations: Array<{
+    unitId: string;
+    operation: "NOOP" | "REMOVE" | "REPLACE" | "AUDIT_ONLY";
+  }>;
+  committed: true;
+  runtime: {
+    committedAt: string;
+    contextGenerationBefore: number;
+    contextGenerationAfter: number;
+  };
+}
+```
+
+失敗回傳 `status: "EXECUTION_ABORTED"`、`committed: false`、immutable diagnostic checks，以及一個或多個 bounded reason codes：
+
+```text
+INVALID_VALIDATED_TRANSFORMATION
+EXECUTION_CHAIN_MISMATCH
+EXECUTION_STALE_CONTEXT
+SOURCE_CONTENT_CHANGED
+CANDIDATE_CONTENT_CHANGED
+RECOVERY_REVALIDATION_FAILED
+EXECUTION_ALREADY_CONSUMED
+EXECUTION_BUILD_FAILED
+EXECUTION_COMMIT_FAILED
+```
+
+Executor failure 不會暴露 prepared clone，也不會 partial apply operation。
 
 ## Failure result
 
@@ -323,13 +422,12 @@ D0-D4 明確排除：
 - inventory rebuild；
 - actual re-tokenization 或 actual-reduction claim。
 
-除了測試在 temporary directory 建立普通 fixture，本實作完全 read-only。
+這些保證完整維持至 D4。D5 只有在所有 gates 通過後，才能替換 active message-array reference；仍不會執行 artifact、memory、lifecycle、authority、inventory 或 accounting write。
 
 ## 剩餘 dev.5 sequence
 
 ```text
-D5  Atomic Executor
 D6  Inventory rebuild + actual re-tokenization + ExecutionReport
 ```
 
-D5 才是第一個可 mutation active context 的 stage；它不能把 `ValidatedTransformation` 當成 self-contained replacement content。
+D6 必須從 committed messages rebuild Context Inventory、執行 actual re-tokenization、計算 actual reduction，並附加 measurement，但不能改變 D5 authorization boundary。

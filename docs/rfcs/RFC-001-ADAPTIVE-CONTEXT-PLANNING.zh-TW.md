@@ -322,7 +322,7 @@ Semantic Planner healthy?
 
 Semantic intelligence 必須允許故障，而 ContextOS 仍能安全工作。
 
-## M5：Validated Transformation and Execution — D0-D4 已實作
+## M5：Validated Transformation and Execution — D0-D5 已實作
 
 M3 authorization 證明 policy eligibility，不代表 recovery source 此刻仍存在。Dev.5 新增另一層 permission boundary：
 
@@ -332,7 +332,7 @@ ValidatedPlan
   -> ExecutablePlan
   -> TransformationCandidate
   -> ValidatedTransformation       （D4）
-  -> atomic execution              （D5，未實作）
+  -> atomic execution              （D5）
   -> inventory rebuild/re-tokenize （D6，未實作）
 ```
 
@@ -345,6 +345,8 @@ D4 將 candidate 綁回 exact `ExecutablePlan` 與 current inventory，要求 ex
 `ValidatedPlan != ExecutablePlan`；recoverability classification 不等於 recovery proof；COMPRESS permission 不授權 arbitrary replacement content。完整 contract 與 frozen M4 manifest 記錄於 [Validated Transformation and Execution Contract](../EXECUTION_CONTRACT.zh-TW.md)。
 
 Recovery proof 是 point-in-time evidence，不是 lease。D5 必須在 commit 前立即重跑 preflight，或 atomically 重新檢查 bound inventory 與 sources；`ExecutablePlan` 僅能 single-use，binding stale 時整批 execution 必須 abort。
+
+D5 是 model-free exact executor。它重新綁定 Validation／Candidate／ExecutablePlan／current Inventory，再次 hash current source 與 exact candidate bytes，並重跑 destructive-action recovery verification。所有 operation 都在完整 message clone 上 build，且必須通過 tool-call structure check。Context-generation／reference guard 封閉 asynchronous recovery 的 TOCTOU window；之後 Runtime 才執行一次 synchronous message-array reference swap 並 consume validation ID。任一 failure 都回傳 `EXECUTION_ABORTED`，不留下 partial executor mutation。只有 D6 負責 inventory rebuild、actual re-tokenization 與 reduction measurement。
 
 ## Release-candidate benchmark design
 
@@ -376,10 +378,10 @@ SCU  = CG * WIR
 | M2 | Planner protocol | Strict schema 與 fake-plan fixtures |
 | M3 | Runtime Validator | Proposal 不等於 permission；fail-closed tests |
 | M4 | Qwen Planner | Bounded inventory、strict output、fallback |
-| M5 | Validated Transformation/Execution | D0-D4 candidate preparation 與 validation 已實作；D5-D6 abort-safe execution 待完成 |
+| M5 | Validated Transformation/Execution | D0-D5 validated atomic execution 已實作；D6 rebuild／accounting 待完成 |
 | RC | A/B/C benchmark | 相同 control envelope；公開 raw results |
 
-M0/M1 於 `0.2.0-dev.1` 完成，M2 於 `0.2.0-dev.2`、M3 於 `0.2.0-dev.3`、bounded proposal generation 於 `0.2.0-dev.4` 完成，`0.2.0-dev.5` 則完成至 D4 的 zero-mutation execution preparation 與 validation。各階段維持 independently reviewable；dev.1–dev.5 D0-D4 都不執行 semantic plan。
+M0/M1 於 `0.2.0-dev.1` 完成，M2 於 `0.2.0-dev.2`、M3 於 `0.2.0-dev.3`、bounded proposal generation 於 `0.2.0-dev.4` 完成，`0.2.0-dev.5` 則完成至 D5 的 validated atomic execution。各階段維持 independently reviewable；D0-D4 是 zero-mutation，D5 是唯一 deterministic message-context commit boundary，且完全不呼叫 model。
 
 ## 影響
 

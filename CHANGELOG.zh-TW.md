@@ -20,7 +20,10 @@
 - 新增 Runtime-first D4 validation：exact Candidate／ExecutablePlan／Inventory binding、重算 digest／token、deterministic operation invariants、canonical EXTERNALIZE marker，以及 COMPRESS reduction／target gates。
 - 新增 isolated、無 tools `transform-validator-v1` semantic preservation assessment 與固定 reason codes；模型無法修改 candidate，也無法 override mechanical failure。
 - 成功產生 immutable whole-plan `ValidatedTransformation`；否則以 `TRANSFORMATION_REJECTED` 整份拒絕，不做 partial approval。
-- 新增雙語 D0-D4 contract；仍無 Executor、mutation、rebuild 或 actual re-tokenization。
+- 新增 model-free D5 Atomic Executor，在 commit 前重新綁定 Validation／Candidate／Plan／Inventory、source／candidate digests 與 fresh recovery proofs。
+- 所有 operation 先在 cloned message context 完整 build，通過 tool-call structure 與 context generation 後才以一次 reference swap commit；任何 failure 都不改 active context。
+- 強制 single-use validation consumption，輸出 immutable `ExecutionResult`／`EXECUTION_ABORTED`，不允許 partial execution。
+- 新增雙語 D0-D5 contract；D6 inventory rebuild、actual re-tokenization、artifacts 與 memory promotion 仍不存在。
 
 ## [0.2.0-dev.4] - 2026-08-10
 

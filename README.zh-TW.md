@@ -33,9 +33,9 @@ Prompt Context   = 可拋棄的工作視圖
 
 ## 目前狀態
 
-**Experimental · v0.2.0-dev.5 D0-D4 Post-transform Validation · Windows-first**
+**Experimental · v0.2.0-dev.5 D0-D5 Atomic Execution · Windows-first**
 
-Deterministic 控制組仍凍結在 [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2)，M4 experiment inputs 則固定於 `aa59f4d`。v0.2 開發線目前已到 immutable、zero-mutation `ValidatedTransformation`：Runtime 先重查 candidate／plan／inventory binding、digests、tokens、deterministic operations 與 canonical recovery marker，再由 isolated `transform-validator-v1` 評估 COMPRESS semantic preservation。Execution、context mutation、artifact creation 與 memory promotion 仍不存在。
+Deterministic 控制組仍凍結在 [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2)，M4 experiment inputs 則固定於 `aa59f4d`。v0.2 開發線目前已到 model-free atomic context execution：D5 在 build 完整 clone 並以一次 message-array reference swap commit 前，重新綁定完整 D2-D4 chain、source／candidate bytes、current recovery sources、single-use validation state 與 context generation。D6 inventory rebuild、actual re-tokenization、artifact creation 與 memory promotion 仍不存在。
 
 已驗證環境：
 
@@ -78,6 +78,9 @@ Runtime 沒有綁死特定模型名稱，但 backend 必須回傳 OpenAI-style c
 - Runtime-first post-transform gates：exact binding、digests、token estimates、operation rules 與 compression targets
 - 僅供 COMPRESS 使用的 isolated、無 tools `transform-validator-v1` semantic preservation assessment
 - Whole-plan immutable `ValidatedTransformation`；任何 mechanical 或 semantic failure 都整份拒絕
+- Model-free D5 pre-commit revalidation，重新綁定完整 Validation／Candidate／Plan／Inventory chain
+- Single-use、generation-guarded Atomic Executor：whole-plan clone/build 後只做一次 reference-swap commit
+- Immutable `ExecutionResult`；stale context、recovery drift 或任何 build failure 都不會留下 partial mutation
 - File 與 artifact tools 依 real path 檢查的 project-root 路徑限制
 - 寫檔、編輯與 shell command 人工確認
 - 破壞性命令 guardrails

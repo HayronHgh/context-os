@@ -20,7 +20,10 @@ All notable changes to this project will be documented here.
 - Add Runtime-first D4 validation for exact Candidate/ExecutablePlan/Inventory binding, recomputed digests/tokens, deterministic operation invariants, canonical EXTERNALIZE markers, and COMPRESS reduction/target gates.
 - Add isolated, tool-free `transform-validator-v1` semantic preservation assessment with fixed reason codes; it cannot edit candidates or override mechanical failures.
 - Emit an immutable whole-plan `ValidatedTransformation`, or `TRANSFORMATION_REJECTED` with no partial approval.
-- Document the D0-D4 contract bilingually; Executor, mutation, rebuild, and actual re-tokenization remain absent.
+- Add a model-free D5 Atomic Executor that rebinds Validation/Candidate/Plan/Inventory, source/candidate digests, and fresh recovery proofs before commit.
+- Build all operations on a cloned message context, enforce tool-call structure and context generation, then commit with one reference swap; every failure leaves the active context unchanged.
+- Enforce single-use validation consumption and emit immutable `ExecutionResult` / `EXECUTION_ABORTED` results with no partial execution.
+- Document the D0-D5 contract bilingually; D6 inventory rebuild, actual re-tokenization, artifacts, and memory promotion remain absent.
 
 ## [0.2.0-dev.4] - 2026-08-10
 

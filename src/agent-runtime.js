@@ -43,7 +43,18 @@ export class AgentRuntime {
     this.inventory = new ContextInventory({ sessionId: memory.sessionId });
     this.durabilityMetrics = { artifactsCreated: 0, artifactCharsPersisted: 0 };
     this.messages = [];
+    this.contextGeneration = 0;
     this.resetConversation();
+  }
+
+  replaceMessages(messages) {
+    if (!Array.isArray(messages)) throw new Error("Runtime messages must be an array");
+    this.messages = messages;
+    this.contextGeneration += 1;
+  }
+
+  appendMessage(message) {
+    this.replaceMessages([...this.messages, message]);
   }
 
   ensureRepoMap() {
@@ -65,13 +76,15 @@ export class AgentRuntime {
   }
 
   resetConversation() {
-    this.messages = [{ role: "system", content: this.systemPrompt() }];
+    this.replaceMessages([{ role: "system", content: this.systemPrompt() }]);
     this.syncInventory();
     this.memory.appendSession({ type: "conversation_reset" });
   }
 
   refreshSystemPrompt() {
-    this.messages[0] = { role: "system", content: this.systemPrompt() };
+    const messages = [...this.messages];
+    messages[0] = { role: "system", content: this.systemPrompt() };
+    this.replaceMessages(messages);
   }
 
   syncInventory() {
@@ -127,7 +140,7 @@ export class AgentRuntime {
       tools: TOOL_DEFINITIONS,
       durabilityMetrics: this.durabilityMetrics
     });
-    this.messages = prepared.messages;
+    this.replaceMessages(prepared.messages);
     const inventory = this.syncInventory();
     prepared.report.inventory = inventory.stats;
     if (prepared.stateTransfer) this.memory.updateState({ stateTransfer: prepared.stateTransfer });
@@ -146,7 +159,7 @@ export class AgentRuntime {
 
   async runTurn(userText) {
     this.refreshSystemPrompt();
-    this.messages.push({ role: "user", content: userText });
+    this.appendMessage({ role: "user", content: userText });
     this.syncInventory();
     this.memory.appendSession({ type: "message", role: "user", content: userText });
 
@@ -163,7 +176,7 @@ export class AgentRuntime {
       };
       if (message.tool_calls?.length) assistant.tool_calls = message.tool_calls;
       if (message.reasoning_content) assistant.reasoning_content = message.reasoning_content;
-      this.messages.push(assistant);
+      this.appendMessage(assistant);
       this.syncInventory();
       this.memory.appendSession({ type: "message", role: "assistant", content: assistant.content, toolCalls: assistant.tool_calls, usage });
 
@@ -185,7 +198,7 @@ export class AgentRuntime {
         const evidence = this.evidence.createToolMessage({ toolCallId: toolCall.id, name, arguments: args, result });
         this.durabilityMetrics.artifactsCreated += evidence.metrics.artifactsCreated;
         this.durabilityMetrics.artifactCharsPersisted += evidence.metrics.artifactCharsPersisted;
-        this.messages.push(evidence.message);
+        this.appendMessage(evidence.message);
         this.syncInventory();
         this.memory.appendSession({
           type: "tool_result",

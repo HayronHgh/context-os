@@ -131,6 +131,12 @@ D4 binds the candidate back to the exact `ExecutablePlan` and current inventory,
 
 Only mechanically valid COMPRESS candidates reach the isolated, tool-free `transform-validator-v1`. It returns an assessment-only ACCEPT/REJECT verdict over preservation of facts, constraints, decisions, identifiers, errors, unresolved state, and meaning; it cannot rewrite content or override a Runtime failure. Any failure rejects the whole transformation. Success produces a deep-frozen `ValidatedTransformation` with no replacement content, `zeroMutation: true`, and `actualReductionTokens: null`; D5 must bind it back to the original candidate before any commit.
 
+### Atomic execution (`src/atomic-executor.js`, `src/execution-result.js`)
+
+D5 is model-free and treats `ValidatedTransformation` as approval metadata rather than a self-contained capability. `AtomicExecutor` requires the original candidate and executable plan, exact current inventory identity and unit coverage, Runtime-owned messages, a writable context generation, and a `RecoveryVerifier`. It rechecks every source/candidate SHA-256 and reruns current recovery verification for destructive actions before commit.
+
+All NOOP, AUDIT_ONLY, REMOVE, and exact REPLACE operations are first applied to a complete cloned message context. Runtime validates tool-call structure, detects generation/reference drift across asynchronous recovery checks, and then performs one synchronous message-array reference swap. The validation ID is consumed in the same critical section. Any stale binding, missing recovery source, build failure, repeated validation, or commit failure returns immutable `EXECUTION_ABORTED` without partial executor mutation. D6 inventory rebuild and actual re-tokenization remain absent.
+
 ### Context manager (`src/context-manager.js`)
 
 - Estimates utilization from messages, tool schemas, tool choice, and fixed safety overhead.
