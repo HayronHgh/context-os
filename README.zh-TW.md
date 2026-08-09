@@ -33,9 +33,9 @@ Prompt Context   = 可拋棄的工作視圖
 
 ## 目前狀態
 
-**Experimental · v0.2.0-dev.4 M4 Bounded Semantic Proposals · Windows-first**
+**Experimental · v0.2.0-dev.5 D0-D6 Execution Finalization · Windows-first**
 
-Deterministic 控制組仍凍結在 [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2)。v0.2 開發線目前已有 benchmark lock、observational Context Inventory、canonical snapshot identity、strict proposal-only CompactionPlan protocol、deterministic Runtime authorization，以及 isolated bounded Qwen proposal generation；不修改 v0.1.2 pressure policy、不執行 plan、不改 context、不建立 artifact、不寫 memory，也不給模型任何 Runtime capability。
+Deterministic 控制組仍凍結在 [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2)，M4 experiment inputs 則固定於 `aa59f4d`。v0.2 開發線目前已到 model-free execution finalization：D5 atomic commit exact validated context，D6 再綁定該 commit 的 generation、以原有 registry rebuild Context Inventory，並使用相同 canonical ContextManager estimator 與 tool envelope 回報 signed actual reduction。Artifact creation 與 memory promotion 仍不存在。
 
 已驗證環境：
 
@@ -69,6 +69,22 @@ Runtime 沒有綁死特定模型名稱，但 backend 必須回傳 OpenAI-style c
 - 具有 global input、unit、visibility 與 output limits 的 bounded PlannerInventoryView
 - 使用 versioned prompt、無 tools、最多一次 strict repair 的 isolated Qwen Planner
 - Visible-only proposal binding、deterministic fallback、session audit 與 PAR／IPR metrics
+- 覆蓋 planner-v1、Planner input／budgets、M2、M3 與 Planner metrics 的 M4 freeze manifest
+- Read-only artifact、repository、memory 與 rebuildable recovery-source verification
+- Strict `ValidatedPlan` admission gate 與 distinct、deep-frozen `ExecutablePlan`
+- Runtime-owned source／candidate SHA-256 binding 與 deterministic non-COMPRESS candidates
+- 使用一次 schema-only repair、無 tools 的 isolated `transformer-v1` COMPRESS generation
+- 不具 execution authority 的 whole-plan immutable `TransformationCandidate`
+- Runtime-first post-transform gates：exact binding、digests、token estimates、operation rules 與 compression targets
+- 僅供 COMPRESS 使用的 isolated、無 tools `transform-validator-v1` semantic preservation assessment
+- Whole-plan immutable `ValidatedTransformation`；任何 mechanical 或 semantic failure 都整份拒絕
+- Model-free D5 pre-commit revalidation，重新綁定完整 Validation／Candidate／Plan／Inventory chain
+- Single-use、generation-guarded Atomic Executor：whole-plan clone/build 後只做一次 reference-swap commit
+- Immutable `ExecutionResult`；stale context、recovery drift 或任何 build failure 都不會留下 partial mutation
+- 綁定 exact committed context generation 的 post-commit D6 finalization
+- 使用原有 registry rebuild Context Inventory，保留 stable ID，removed unit 轉為 inactive
+- Before／after 使用相同 tools／overhead 的 canonical ContextManager accounting，actual reduction 保留正負號
+- Immutable `ExecutionReport`；finalization failure 不會把 D5 改報 aborted，也不 rollback commit
 - File 與 artifact tools 依 real path 檢查的 project-root 路徑限制
 - 寫檔、編輯與 shell command 人工確認
 - 破壞性命令 guardrails
@@ -269,6 +285,7 @@ v0.1.2 後，0.1.x 只接受 critical bug、security fix、regression 與 docume
 | [CompactionPlan protocol](docs/COMPACTION_PLAN_PROTOCOL.md) | [CompactionPlan protocol](docs/COMPACTION_PLAN_PROTOCOL.zh-TW.md) |
 | [Compaction authorization](docs/COMPACTION_VALIDATION.md) | [Compaction authorization](docs/COMPACTION_VALIDATION.zh-TW.md) |
 | [Bounded semantic planning](docs/BOUNDED_SEMANTIC_PLANNING.md) | [Bounded semantic planning](docs/BOUNDED_SEMANTIC_PLANNING.zh-TW.md) |
+| [Execution contract](docs/EXECUTION_CONTRACT.md) | [Execution contract](docs/EXECUTION_CONTRACT.zh-TW.md) |
 | [RFC-001: Adaptive Context Planning](docs/rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.md) | [RFC-001：自適應 Context Planning](docs/rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.zh-TW.md) |
 
 ## 開發

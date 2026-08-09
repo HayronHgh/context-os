@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "baselineCommit": "aa59f4d496950ba069cb7273d4096cc1223d5dcf",
+  "version": "0.2.0-dev.4",
+  "promptVersion": "planner-v1",
+  "immutableInputs": {
+    "src/planners/planner-prompt.js": "sha256:abe5c9f5e01303be68fe504e6e14f962cce495d5b86389a7de8cceff3ee24e8f",
+    "src/planners/planner-input.js": "sha256:ce01741ce1963ec9fd727afa499216ac1235ca67b43f1b40a365b61fd25ee24c",
+    "src/planners/qwen-planner.js": "sha256:2a8b0e158b6ca4807ef3aefc915342a5c2b5d07caf274c23e19cc32b36c07d76",
+    "src/compaction-plan.js": "sha256:ffb7197feb356626c5b318138bec2b6b2984dc0d520f9e89ff3aac4fb08e8be6",
+    "src/compaction-validator.js": "sha256:be00e8d2b740e2139f16ab9f4f38e59abd0ac1a47de3aceb791af7cb7b07785d",
+    "src/planner-observability.js": "sha256:a20aef7c589a9db6c42b85eb743c92446d398c522016a4767c4c013e55b67eef",
+    "src/semantic-proposal.js": "sha256:6b8105bc23e3fb96ea15574b191c2ec20c515c4456feb81a6ad34b90e08d5f81"
+  }
+}

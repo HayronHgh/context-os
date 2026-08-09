@@ -2,7 +2,7 @@
 
 繁體中文 · [English](TECHNICAL_REPORT.md)
 
-版本：0.2.0-dev.4
+版本：0.2.0-dev.5
 
 狀態：Experimental Research MVP
 
@@ -38,6 +38,18 @@ ContextOS 實作本機 coding agent 外部 Context Runtime 已凍結的前兩個
 | `src/compaction-plan.js` | Strict proposal schema/parser、snapshot binding 與 implicit KEEP expansion |
 | `src/planners/planner.js` | Model-independent asynchronous Planner contract |
 | `src/planners/fake-planner.js` | 使用 fixtures、clone I/O 並記錄 calls 的 Planner test double |
+| `src/recovery-verifier.js` | Current-source recovery proof providers |
+| `src/execution-preflight.js` | Strict ValidatedPlan-to-ExecutablePlan admission gate |
+| `src/transformation-candidate.js` | Candidate schema、digests 與 deterministic action mapping |
+| `src/context-transformer.js` | Whole-plan zero-mutation transformation orchestration |
+| `src/qwen-transformer.js` | Isolated bounded transformer-v1 COMPRESS generation |
+| `src/post-transform-validator.js` | Whole-plan deterministic 與 semantic candidate validation |
+| `src/validated-transformation.js` | Immutable validation success／rejection result schemas |
+| `src/qwen-transform-validator.js` | Isolated、無 tools 的 transform-validator-v1 assessment |
+| `src/atomic-executor.js` | Model-free、single-use、generation-guarded atomic context execution |
+| `src/execution-result.js` | Immutable committed／aborted execution result schemas |
+| `src/execution-finalizer.js` | Generation-bound inventory rebuild 與 canonical post-commit accounting |
+| `src/execution-report.js` | Immutable finalized／finalization-failed report schemas |
 | `src/context-manager.js` | Budget、pruning、structured compaction |
 | `src/llama-client.js` | OpenAI-compatible HTTP client |
 | `src/memory-store.js` | JSON、JSONL、Markdown、episodes、artifacts |
@@ -134,4 +146,4 @@ v0.1.2 凍結 deterministic Phase 1/2 baseline。後續 0.1.x 只處理 critical
 
 v0.2.0 保留給 **Adaptive Semantic Context Planning**：token pressure 決定何時可能需要 intervention，task semantics 提議什麼重要，凍結的 runtime invariants 決定哪些 action 合法。第一個 benchmark 應比較 threshold、pure semantic 與 hybrid planners，不能改動 v0.1.2 control group。
 
-`0.2.0-dev.1` 完成 M0/M1，`0.2.0-dev.2` 完成 strict proposal protocol，`0.2.0-dev.3` 完成 deterministic Runtime authorization。`0.2.0-dev.4` 新增 isolated Qwen proposal path：使用 globally bounded PlannerInventoryView、strict visible-only binding、一次 correction、deterministic fallback、session telemetry 與 proposal-quality metrics。它仍輸出 `ValidatedPlan` 並在 transformation／execution 前停止。實作契約記錄於 [CompactionPlan Protocol](COMPACTION_PLAN_PROTOCOL.zh-TW.md)、[Compaction Authorization](COMPACTION_VALIDATION.zh-TW.md) 與 [Bounded Semantic Planning](BOUNDED_SEMANTIC_PLANNING.zh-TW.md)；完整 threat boundaries 與 gates 定義於 [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.zh-TW.md)。
+`0.2.0-dev.1` 完成 M0/M1，`0.2.0-dev.2` 完成 strict proposal protocol，`0.2.0-dev.3` 完成 deterministic Runtime authorization，`0.2.0-dev.4` 完成 bounded Qwen proposal generation。Dev.5 D0-D6 現在完成 current-source recovery proof、strict preflight、immutable candidate generation／validation、model-free atomic execution、existing-registry inventory rebuild，以及 canonical signed post-commit accounting。D5 保存 pre-commit ContextManager breakdown 與 tool-envelope identity；D6 綁定 committed context generation、rebuild stable units／lifecycles，並將 actual 與 potential reduction 分開回報。M4 experiment identity 持續由 hash 固定；artifact write 與 memory promotion 仍不存在。實作契約記錄於 [CompactionPlan Protocol](COMPACTION_PLAN_PROTOCOL.zh-TW.md)、[Compaction Authorization](COMPACTION_VALIDATION.zh-TW.md)、[Bounded Semantic Planning](BOUNDED_SEMANTIC_PLANNING.zh-TW.md) 與 [Execution Contract](EXECUTION_CONTRACT.zh-TW.md)；完整 threat boundaries 與 gates 定義於 [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.zh-TW.md)。

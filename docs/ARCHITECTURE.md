@@ -113,6 +113,36 @@ M4 builds a Planner-specific view from an internal inventory snapshot. Per-unit 
 
 `QwenPlanner` uses a stateless OpenAI-compatible chat call with no tools, the versioned `planner-v1` system prompt, low temperature, strict JSON, and at most one correction attempt. Plan ID, inventory identity, and visible-unit membership are verified before the unchanged M3 Validator runs. Session audit records experimental attempts/results separately from semantic memory. Validator rejection stops and selects fallback; it never triggers autonomous replanning. See [Bounded semantic planning](BOUNDED_SEMANTIC_PLANNING.md).
 
+### Execution preflight (`src/recovery-verifier.js`, `src/execution-preflight.js`)
+
+Dev.5 D0-D2 adds a read-only boundary between `ValidatedPlan` and execution. A strict preflight admits only a current, potentially sufficient, non-fallback Runtime plan with complete inventory coverage. `RecoveryVerifier` then revalidates every applicable artifact, repository, memory, or rebuildable source against current state. Missing references/providers, integrity drift, path escape, stale inventory, rejected decisions, and insufficient plans fail the whole preflight.
+
+Only successful preflight returns a distinct deep-frozen `ExecutablePlan`. It contains decisions and recovery proofs but no replacement content, mutation callback, write authority, or actual-reduction claim. `config/m4-freeze.json` pins the immutable M4 experiment inputs. See [Validated Transformation and Execution Contract](EXECUTION_CONTRACT.md).
+
+### Transformation candidates (`src/transformation-candidate.js`, `src/context-transformer.js`, `src/qwen-transformer.js`)
+
+D3 rechecks exact inventory identity, binds every decision to a Runtime-computed source-content SHA-256, and emits one immutable candidate per executable decision. KEEP and PROMOTE_PROPOSAL remain NOOP/AUDIT_ONLY; EVICT becomes a descriptive REMOVE; EXTERNALIZE gets a canonical Runtime recovery marker. Only COMPRESS invokes the isolated, tool-free `transformer-v1`, whose strict output contains candidate content and no metadata.
+
+Runtime computes candidate SHA-256 and token estimates after model output. Candidate target overshoot is retained for D4, not retried or rejected by D3. Any stale inventory or one candidate-generation failure rejects the whole preparation. No messages, inventory, lifecycle, artifacts, or memory are mutated.
+
+### Post-transform validation (`src/post-transform-validator.js`, `src/validated-transformation.js`, `src/qwen-transform-validator.js`)
+
+D4 binds the candidate back to the exact `ExecutablePlan` and current inventory, requires every unit exactly once, and recomputes source/candidate digests and candidate token estimates from current Runtime data. Deterministic per-operation rules reject malformed NOOP, AUDIT_ONLY, REMOVE, and EXTERNALIZE candidates; canonical recovery markers are compared by exact content rather than digest alone. COMPRESS candidates must be non-empty, actually reduce estimated tokens, and remain within the requested target.
+
+Only mechanically valid COMPRESS candidates reach the isolated, tool-free `transform-validator-v1`. It returns an assessment-only ACCEPT/REJECT verdict over preservation of facts, constraints, decisions, identifiers, errors, unresolved state, and meaning; it cannot rewrite content or override a Runtime failure. Any failure rejects the whole transformation. Success produces a deep-frozen `ValidatedTransformation` with no replacement content, `zeroMutation: true`, and `actualReductionTokens: null`; D5 must bind it back to the original candidate before any commit.
+
+### Atomic execution (`src/atomic-executor.js`, `src/execution-result.js`)
+
+D5 is model-free and treats `ValidatedTransformation` as approval metadata rather than a self-contained capability. `AtomicExecutor` requires the original candidate and executable plan, exact current inventory identity and unit coverage, Runtime-owned messages, a writable context generation, and a `RecoveryVerifier`. It rechecks every source/candidate SHA-256 and reruns current recovery verification for destructive actions before commit.
+
+All NOOP, AUDIT_ONLY, REMOVE, and exact REPLACE operations are first applied to a complete cloned message context. Runtime validates tool-call structure, detects generation/reference drift across asynchronous recovery checks, and then performs one synchronous message-array reference swap. The validation ID is consumed in the same critical section. Any stale binding, missing recovery source, build failure, repeated validation, or commit failure returns immutable `EXECUTION_ABORTED` without partial executor mutation. D5 also preserves a canonical pre-commit token breakdown and exact tool-envelope digest for D6, but makes no actual-reduction claim.
+
+### Post-commit finalization (`src/execution-finalizer.js`, `src/execution-report.js`)
+
+D6 accepts only an immutable committed `ExecutionResult` bound to the current context generation and the still-stale pre-commit inventory registry. It reruns `ContextInventory.synchronize()` on that existing registry, so removed units become inactive while replacements retain stable IDs and receive current content/token cost. The resulting identity must reflect the committed messages.
+
+Before and after values both come from `ContextManager.estimateComponents()` with the exact same tool-schema digest and fixed overhead. Actual reduction is the signed `before.totalTokens - after.totalTokens`; it is never clamped to zero and remains distinct from M3's gross potential upper bound. Success returns an immutable `ExecutionReport`. Drift, rebuild, or accounting failure returns `EXECUTION_FINALIZATION_FAILED`, preserves `actualReductionTokens: null`, and never rolls back or relabels the D5 commit.
+
 ### Context manager (`src/context-manager.js`)
 
 - Estimates utilization from messages, tool schemas, tool choice, and fixed safety overhead.

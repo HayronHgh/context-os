@@ -4,6 +4,31 @@
 
 All notable changes to this project will be documented here.
 
+## [0.2.0-dev.5] - 2026-08-10
+
+### Zero-mutation execution preparation
+
+- Pin the M4 `aa59f4d` experiment identity and machine-check immutable Planner, M2, M3, PAR/IPR, and telemetry inputs.
+- Add read-only `RecoveryVerifier` providers for artifact integrity, repository containment/current hash, memory references, and registered rebuild mechanisms.
+- Add strict `ValidatedPlan` admission checks for current inventory identity, complete decision coverage, sufficient authorization, and zero fallback.
+- Emit a distinct deep-frozen `ExecutablePlan` only after every required current-source proof succeeds.
+- Fail closed as `EXECUTION_PRECONDITION_FAILED` with no partial execution and machine-readable recovery errors.
+- Add whole-plan `ExecutablePlan -> TransformationCandidate` preparation with a second exact inventory binding gate and no partial candidates.
+- Map KEEP, PROMOTE_PROPOSAL, EVICT, and EXTERNALIZE deterministically; canonical recovery markers come only from Runtime recovery references/proofs.
+- Add isolated, tool-free, bounded `transformer-v1` generation only for COMPRESS, with strict `{ content }` output and one schema-only repair.
+- Compute source/candidate SHA-256 digests and candidate token estimates in Runtime; oversize candidates remain prepared for D4 to judge.
+- Add Runtime-first D4 validation for exact Candidate/ExecutablePlan/Inventory binding, recomputed digests/tokens, deterministic operation invariants, canonical EXTERNALIZE markers, and COMPRESS reduction/target gates.
+- Add isolated, tool-free `transform-validator-v1` semantic preservation assessment with fixed reason codes; it cannot edit candidates or override mechanical failures.
+- Emit an immutable whole-plan `ValidatedTransformation`, or `TRANSFORMATION_REJECTED` with no partial approval.
+- Add a model-free D5 Atomic Executor that rebinds Validation/Candidate/Plan/Inventory, source/candidate digests, and fresh recovery proofs before commit.
+- Build all operations on a cloned message context, enforce tool-call structure and context generation, then commit with one reference swap; every failure leaves the active context unchanged.
+- Enforce single-use validation consumption and emit immutable `ExecutionResult` / `EXECUTION_ABORTED` results with no partial execution.
+- Capture D5 pre-commit token accounting with the canonical ContextManager estimator and exact tool-schema digest, without claiming actual reduction before commit.
+- Add D6 generation-bound post-commit finalization, rebuilding the existing Context Inventory registry while retaining stable IDs and inactive lifecycle history.
+- Measure the committed context with the same estimator/tools/overhead, preserve signed negative reduction, and report potential upper bound separately from actual reduction.
+- Emit immutable `ExecutionReport` or `EXECUTION_FINALIZATION_FAILED`; finalization failure never rolls back or relabels the committed D5 execution.
+- Document the complete D0-D6 dev.5 contract bilingually; artifacts and memory promotion remain absent.
+
 ## [0.2.0-dev.4] - 2026-08-10
 
 ### Bounded semantic proposal generation

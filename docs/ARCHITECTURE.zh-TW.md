@@ -113,6 +113,36 @@ M4 由 internal inventory snapshot 建立 Planner-specific view。Per-unit deter
 
 `QwenPlanner` 使用 stateless OpenAI-compatible chat call，不提供 tools，套用 versioned `planner-v1` system prompt、low temperature、strict JSON 與最多一次 correction。Plan ID、inventory identity 與 visible-unit membership 驗證後，才呼叫未修改的 M3 Validator。Session audit 將 experimental attempts／results 與 semantic memory 分離。Validator rejection 直接停止並選擇 fallback，不會觸發 autonomous replanning。詳見 [Bounded semantic planning](BOUNDED_SEMANTIC_PLANNING.zh-TW.md)。
 
+### Execution preflight（`src/recovery-verifier.js`、`src/execution-preflight.js`）
+
+Dev.5 D0-D2 在 `ValidatedPlan` 與 execution 之間新增 read-only boundary。Strict preflight 只接受 current、potentially sufficient、non-fallback 且完整覆蓋 inventory 的 Runtime plan；`RecoveryVerifier` 再依 current state 重新驗證 applicable artifact、repository、memory 或 rebuildable source。缺 reference／provider、integrity drift、path escape、stale inventory、rejected decision 或 insufficient plan，都會使完整 preflight 失敗。
+
+只有成功的 preflight 才回傳 distinct、deep-frozen `ExecutablePlan`。它包含 decisions 與 recovery proofs，但沒有 replacement content、mutation callback、write authority 或 actual-reduction claim。`config/m4-freeze.json` 固定 immutable M4 experiment inputs。詳見 [Validated Transformation and Execution Contract](EXECUTION_CONTRACT.zh-TW.md)。
+
+### Transformation candidates（`src/transformation-candidate.js`、`src/context-transformer.js`、`src/qwen-transformer.js`）
+
+D3 再次檢查 exact inventory identity，以 Runtime 計算的 source-content SHA-256 綁定每個 decision，並為每個 executable decision 產生一個 immutable candidate。KEEP 與 PROMOTE_PROPOSAL 維持 NOOP／AUDIT_ONLY；EVICT 成為描述性的 REMOVE；EXTERNALIZE 使用 canonical Runtime recovery marker。只有 COMPRESS 呼叫 isolated、無 tools 的 `transformer-v1`，其 strict output 只有 candidate content，不含 metadata。
+
+Model output 回來後，Runtime 才計算 candidate SHA-256 與 token estimate。Candidate 超出 target 會保留給 D4，不由 D3 retry 或 reject。Stale inventory 或任一 candidate generation failure 都會拒絕整份 preparation；messages、inventory、lifecycle、artifacts 與 memory 完全不 mutation。
+
+### Post-transform validation（`src/post-transform-validator.js`、`src/validated-transformation.js`、`src/qwen-transform-validator.js`）
+
+D4 將 candidate 綁回 exact `ExecutablePlan` 與 current inventory，要求每個 unit exactly once，並以目前 Runtime data 重新計算 source／candidate digest 與 candidate token estimate。Deterministic per-operation rules 會拒絕不合規的 NOOP、AUDIT_ONLY、REMOVE 與 EXTERNALIZE candidate；canonical recovery marker 比對 exact content，不只比 digest。COMPRESS candidate 必須非空、確實降低 estimated tokens，且不得超過 requested target。
+
+只有通過 mechanical checks 的 COMPRESS candidate 會進入 isolated、無 tools 的 `transform-validator-v1`。它只能針對 facts、constraints、decisions、identifiers、errors、unresolved state 與 meaning 是否保存回傳 ACCEPT／REJECT assessment，不能修改 content，也不能推翻 Runtime failure。任一 failure 都拒絕整份 transformation。成功只產生 deep-frozen `ValidatedTransformation`，不含 replacement content，並保持 `zeroMutation: true`、`actualReductionTokens: null`；D5 在任何 commit 前必須再將它綁回原始 candidate。
+
+### Atomic execution（`src/atomic-executor.js`、`src/execution-result.js`）
+
+D5 完全 model-free，並將 `ValidatedTransformation` 視為 approval metadata，而非 self-contained capability。`AtomicExecutor` 要求原始 candidate 與 executable plan、exact current inventory identity 與 unit coverage、Runtime-owned messages、writable context generation，以及 `RecoveryVerifier`；commit 前會重查每個 source／candidate SHA-256，並重新驗證 destructive action 的 current recovery source。
+
+所有 NOOP、AUDIT_ONLY、REMOVE 與 exact REPLACE operation 都先套用到完整 cloned message context。Runtime 驗證 tool-call structure、偵測 asynchronous recovery checks 期間的 generation／reference drift，最後只做一次 synchronous message-array reference swap，並在同一 critical section consume validation ID。任何 stale binding、recovery source 消失、build failure、validation 重複使用或 commit failure，都回傳 immutable `EXECUTION_ABORTED`，不留下 partial executor mutation。D5 也為 D6 保存 canonical pre-commit token breakdown 與 exact tool-envelope digest，但不宣稱 actual reduction。
+
+### Post-commit finalization（`src/execution-finalizer.js`、`src/execution-report.js`）
+
+D6 只接受 immutable committed `ExecutionResult`，並要求 current context generation 與仍為 pre-commit 狀態的 inventory registry 完全匹配。它在原有 registry 重跑 `ContextInventory.synchronize()`，使 removed unit 轉為 inactive，replacement 保留 stable ID 並取得 current content／token cost；新 identity 必須反映 committed messages。
+
+Before／after 都使用 `ContextManager.estimateComponents()`，並綁定 exact same tool-schema digest 與 fixed overhead。Actual reduction 是 signed `before.totalTokens - after.totalTokens`，絕不 clamp 到零，且與 M3 gross potential upper bound 分開。成功回傳 immutable `ExecutionReport`；drift、rebuild 或 accounting failure 回傳 `EXECUTION_FINALIZATION_FAILED`、維持 `actualReductionTokens: null`，且不 rollback 或重新標記 D5 commit。
+
 ### Context Manager（`src/context-manager.js`）
 
 - 由 messages、tool schemas、tool choice 與固定安全餘量估算 prompt 使用率。

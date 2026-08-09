@@ -4,6 +4,31 @@
 
 所有重要變更都會記錄於此。
 
+## [0.2.0-dev.5] - 2026-08-10
+
+### Zero-mutation execution preparation
+
+- 固定 M4 `aa59f4d` experiment identity，並以測試鎖定 Planner、M2、M3、PAR／IPR 與 telemetry inputs。
+- 新增 read-only `RecoveryVerifier` providers，驗證 artifact integrity、repository containment／current hash、memory reference 與 registered rebuild mechanism。
+- 新增 strict `ValidatedPlan` admission checks：current inventory identity、完整 decision coverage、sufficient authorization 與 zero fallback。
+- 所有 required current-source proof 通過後，才產生 distinct、deep-frozen `ExecutablePlan`。
+- 以 `EXECUTION_PRECONDITION_FAILED` fail closed，不允許 partial execution，並提供 machine-readable recovery errors。
+- 新增 whole-plan `ExecutablePlan -> TransformationCandidate` preparation，包含第二次 exact inventory binding gate，且不回傳 partial candidate。
+- KEEP、PROMOTE_PROPOSAL、EVICT、EXTERNALIZE 全部 deterministic mapping；canonical recovery marker 只由 Runtime recovery reference／proof 建立。
+- 只有 COMPRESS 使用 isolated、無 tools、bounded `transformer-v1`，strict output 僅含 `{ content }`，最多一次 schema-only repair。
+- Source／candidate SHA-256 digest 與 candidate token estimate 全由 Runtime 計算；超出 target 的 candidate 仍交由 D4 判斷。
+- 新增 Runtime-first D4 validation：exact Candidate／ExecutablePlan／Inventory binding、重算 digest／token、deterministic operation invariants、canonical EXTERNALIZE marker，以及 COMPRESS reduction／target gates。
+- 新增 isolated、無 tools `transform-validator-v1` semantic preservation assessment 與固定 reason codes；模型無法修改 candidate，也無法 override mechanical failure。
+- 成功產生 immutable whole-plan `ValidatedTransformation`；否則以 `TRANSFORMATION_REJECTED` 整份拒絕，不做 partial approval。
+- 新增 model-free D5 Atomic Executor，在 commit 前重新綁定 Validation／Candidate／Plan／Inventory、source／candidate digests 與 fresh recovery proofs。
+- 所有 operation 先在 cloned message context 完整 build，通過 tool-call structure 與 context generation 後才以一次 reference swap commit；任何 failure 都不改 active context。
+- 強制 single-use validation consumption，輸出 immutable `ExecutionResult`／`EXECUTION_ABORTED`，不允許 partial execution。
+- D5 commit 前使用 canonical ContextManager estimator 與 exact tool-schema digest 保存 token accounting，但在 commit 前不宣稱 actual reduction。
+- 新增 generation-bound D6 post-commit finalization，以原有 Context Inventory registry rebuild，保留 stable ID 與 inactive lifecycle history。
+- 使用相同 estimator／tools／overhead 測量 committed context，保留 signed negative reduction，並將 potential upper bound 與 actual reduction 分開回報。
+- 輸出 immutable `ExecutionReport` 或 `EXECUTION_FINALIZATION_FAILED`；finalization failure 不 rollback，也不把 committed D5 改報 aborted。
+- 新增完整雙語 D0-D6 dev.5 contract；artifacts 與 memory promotion 仍不存在。
+
 ## [0.2.0-dev.4] - 2026-08-10
 
 ### Bounded semantic proposal generation

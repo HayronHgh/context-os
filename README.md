@@ -33,9 +33,9 @@ The goal is simple: a conversation may be compacted or reset without killing the
 
 ## Status
 
-**Experimental · v0.2.0-dev.4 M4 Bounded Semantic Proposals · Windows-first**
+**Experimental · v0.2.0-dev.5 D0-D6 Execution Finalization · Windows-first**
 
-The deterministic control remains frozen at [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2). The v0.2 development line now has benchmark locking, observational Context Inventory, canonical snapshot identity, a strict proposal-only CompactionPlan protocol, deterministic Runtime authorization, and isolated bounded Qwen proposal generation. It does not change the v0.1.2 pressure policy, execute plans, mutate context, create artifacts, write memory, or give the model Runtime capabilities.
+The deterministic control remains frozen at [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2), and M4 experiment inputs are pinned to `aa59f4d`. The v0.2 development line now reaches model-free execution finalization: D5 atomically commits the exact validated context, then D6 generation-binds that commit, rebuilds the existing Context Inventory registry, and uses the same canonical ContextManager estimator and tool envelope to report signed actual reduction. Artifact creation and memory promotion remain absent.
 
 Tested with:
 
@@ -69,6 +69,22 @@ The runtime is not tied to a specific model name, but the backend must return Op
 - Bounded PlannerInventoryView with global input, unit, visibility, and output limits
 - Isolated tool-free Qwen Planner with versioned prompt and one strict repair attempt
 - Visible-only proposal binding, deterministic fallback, session audit, PAR/IPR metrics
+- M4 freeze manifest covering planner-v1, Planner input/budgets, M2, M3, and Planner metrics
+- Read-only artifact, repository, memory, and rebuildable recovery-source verification
+- Strict `ValidatedPlan` admission gate and distinct deep-frozen `ExecutablePlan`
+- Runtime-owned source/candidate SHA-256 binding and deterministic non-COMPRESS candidates
+- Isolated tool-free `transformer-v1` COMPRESS generation with one schema-only repair
+- Whole-plan immutable `TransformationCandidate` with no execution authority
+- Runtime-first post-transform gates for exact binding, digests, token estimates, operation rules, and compression targets
+- Isolated tool-free `transform-validator-v1` semantic preservation assessment for COMPRESS only
+- Whole-plan immutable `ValidatedTransformation`; any mechanical or semantic failure rejects everything
+- Model-free D5 pre-commit revalidation of the complete Validation/Candidate/Plan/Inventory chain
+- Single-use, generation-guarded Atomic Executor with whole-plan clone/build and one reference-swap commit
+- Immutable `ExecutionResult`; stale context, recovery drift, or any build failure aborts without partial mutation
+- Post-commit D6 finalization bound to the exact committed context generation
+- Existing-registry Context Inventory rebuild with stable IDs and inactive removed units
+- Canonical before/after ContextManager accounting with identical tools/overhead and signed actual reduction
+- Immutable `ExecutionReport`; finalization failure never rewrites D5 as aborted or rolls back its commit
 - Real-path-aware project-root containment for file and artifact tools
 - Approval prompts for writes, edits, and shell commands
 - Destructive-command guardrails
@@ -269,6 +285,7 @@ After v0.1.2, the 0.1.x line accepts only critical bugs, security fixes, regress
 | [CompactionPlan protocol](docs/COMPACTION_PLAN_PROTOCOL.md) | [CompactionPlan protocol](docs/COMPACTION_PLAN_PROTOCOL.zh-TW.md) |
 | [Compaction authorization](docs/COMPACTION_VALIDATION.md) | [Compaction authorization](docs/COMPACTION_VALIDATION.zh-TW.md) |
 | [Bounded semantic planning](docs/BOUNDED_SEMANTIC_PLANNING.md) | [Bounded semantic planning](docs/BOUNDED_SEMANTIC_PLANNING.zh-TW.md) |
+| [Execution contract](docs/EXECUTION_CONTRACT.md) | [Execution contract](docs/EXECUTION_CONTRACT.zh-TW.md) |
 | [RFC-001: Adaptive Context Planning](docs/rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.md) | [RFC-001：自適應 Context Planning](docs/rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.zh-TW.md) |
 
 ## Development
