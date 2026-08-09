@@ -113,6 +113,12 @@ M4 由 internal inventory snapshot 建立 Planner-specific view。Per-unit deter
 
 `QwenPlanner` 使用 stateless OpenAI-compatible chat call，不提供 tools，套用 versioned `planner-v1` system prompt、low temperature、strict JSON 與最多一次 correction。Plan ID、inventory identity 與 visible-unit membership 驗證後，才呼叫未修改的 M3 Validator。Session audit 將 experimental attempts／results 與 semantic memory 分離。Validator rejection 直接停止並選擇 fallback，不會觸發 autonomous replanning。詳見 [Bounded semantic planning](BOUNDED_SEMANTIC_PLANNING.zh-TW.md)。
 
+### Execution preflight（`src/recovery-verifier.js`、`src/execution-preflight.js`）
+
+Dev.5 D0-D2 在 `ValidatedPlan` 與 execution 之間新增 read-only boundary。Strict preflight 只接受 current、potentially sufficient、non-fallback 且完整覆蓋 inventory 的 Runtime plan；`RecoveryVerifier` 再依 current state 重新驗證 applicable artifact、repository、memory 或 rebuildable source。缺 reference／provider、integrity drift、path escape、stale inventory、rejected decision 或 insufficient plan，都會使完整 preflight 失敗。
+
+只有成功的 preflight 才回傳 distinct、deep-frozen `ExecutablePlan`。它包含 decisions 與 recovery proofs，但沒有 replacement content、mutation callback、write authority 或 actual-reduction claim。`config/m4-freeze.json` 固定 immutable M4 experiment inputs。詳見 [Validated Transformation and Execution Contract](EXECUTION_CONTRACT.zh-TW.md)。
+
 ### Context Manager（`src/context-manager.js`）
 
 - 由 messages、tool schemas、tool choice 與固定安全餘量估算 prompt 使用率。

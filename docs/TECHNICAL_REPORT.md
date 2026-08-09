@@ -2,7 +2,7 @@
 
 [繁體中文](TECHNICAL_REPORT.zh-TW.md) · English
 
-Version: 0.2.0-dev.4
+Version: 0.2.0-dev.5
 
 Status: Experimental research MVP
 
@@ -134,4 +134,4 @@ v0.1.2 freezes the deterministic Phase 1/2 baseline. Future 0.1.x changes are li
 
 v0.2.0 is reserved for **Adaptive Semantic Context Planning**: token pressure decides when intervention may be needed, task semantics proposes what matters, and frozen runtime invariants decide which actions are legal. The first benchmark should compare threshold, pure semantic, and hybrid planners without changing the v0.1.2 control group.
 
-`0.2.0-dev.1` completed M0/M1, `0.2.0-dev.2` the strict proposal protocol, and `0.2.0-dev.3` deterministic Runtime authorization. `0.2.0-dev.4` adds an isolated Qwen proposal path over a globally bounded PlannerInventoryView, strict visible-only binding, one correction attempt, deterministic fallback, session telemetry, and proposal-quality metrics. It still emits a `ValidatedPlan` and stops before transformation or execution. The contracts are documented in [CompactionPlan Protocol](COMPACTION_PLAN_PROTOCOL.md), [Compaction Authorization](COMPACTION_VALIDATION.md), and [Bounded Semantic Planning](BOUNDED_SEMANTIC_PLANNING.md); the complete threat boundaries and gates are specified in [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.md).
+`0.2.0-dev.1` completed M0/M1, `0.2.0-dev.2` the strict proposal protocol, `0.2.0-dev.3` deterministic Runtime authorization, and `0.2.0-dev.4` bounded Qwen proposal generation. Dev.5 D0-D2 now adds current-source recovery proof and a strict zero-mutation `ValidatedPlan` to `ExecutablePlan` preflight boundary. The M4 experiment identity is hash-pinned; transformation, candidate validation, execution, mutation, inventory rebuild, and actual reduction remain absent. The contracts are documented in [CompactionPlan Protocol](COMPACTION_PLAN_PROTOCOL.md), [Compaction Authorization](COMPACTION_VALIDATION.md), [Bounded Semantic Planning](BOUNDED_SEMANTIC_PLANNING.md), and [Execution Contract](EXECUTION_CONTRACT.md); the complete threat boundaries and gates are specified in [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.md).

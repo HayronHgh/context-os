@@ -4,6 +4,17 @@
 
 所有重要變更都會記錄於此。
 
+## [0.2.0-dev.5] - 2026-08-10
+
+### Zero-mutation execution preflight
+
+- 固定 M4 `aa59f4d` experiment identity，並以測試鎖定 Planner、M2、M3、PAR／IPR 與 telemetry inputs。
+- 新增 read-only `RecoveryVerifier` providers，驗證 artifact integrity、repository containment／current hash、memory reference 與 registered rebuild mechanism。
+- 新增 strict `ValidatedPlan` admission checks：current inventory identity、完整 decision coverage、sufficient authorization 與 zero fallback。
+- 所有 required current-source proof 通過後，才產生 distinct、deep-frozen `ExecutablePlan`。
+- 以 `EXECUTION_PRECONDITION_FAILED` fail closed，不允許 partial execution，並提供 machine-readable recovery errors。
+- 新增雙語 D0-D2 contract；仍無 Transformer、candidate generation、post-transform validation、Executor、mutation、rebuild 或 actual re-tokenization。
+
 ## [0.2.0-dev.4] - 2026-08-10
 
 ### Bounded semantic proposal generation

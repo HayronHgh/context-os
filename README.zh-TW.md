@@ -33,9 +33,9 @@ Prompt Context   = 可拋棄的工作視圖
 
 ## 目前狀態
 
-**Experimental · v0.2.0-dev.4 M4 Bounded Semantic Proposals · Windows-first**
+**Experimental · v0.2.0-dev.5 D0-D2 Execution Preflight · Windows-first**
 
-Deterministic 控制組仍凍結在 [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2)。v0.2 開發線目前已有 benchmark lock、observational Context Inventory、canonical snapshot identity、strict proposal-only CompactionPlan protocol、deterministic Runtime authorization，以及 isolated bounded Qwen proposal generation；不修改 v0.1.2 pressure policy、不執行 plan、不改 context、不建立 artifact、不寫 memory，也不給模型任何 Runtime capability。
+Deterministic 控制組仍凍結在 [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2)，M4 experiment inputs 則固定於 `aa59f4d`。v0.2 開發線現在新增 strict zero-mutation execution preflight：重新驗證 current recovery source，成功後才可產生 distinct、immutable `ExecutablePlan`。Transformation、execution、context mutation、artifact creation 與 memory promotion 仍不存在。
 
 已驗證環境：
 
@@ -69,6 +69,9 @@ Runtime 沒有綁死特定模型名稱，但 backend 必須回傳 OpenAI-style c
 - 具有 global input、unit、visibility 與 output limits 的 bounded PlannerInventoryView
 - 使用 versioned prompt、無 tools、最多一次 strict repair 的 isolated Qwen Planner
 - Visible-only proposal binding、deterministic fallback、session audit 與 PAR／IPR metrics
+- 覆蓋 planner-v1、Planner input／budgets、M2、M3 與 Planner metrics 的 M4 freeze manifest
+- Read-only artifact、repository、memory 與 rebuildable recovery-source verification
+- Strict `ValidatedPlan` admission gate 與 distinct、deep-frozen `ExecutablePlan`
 - File 與 artifact tools 依 real path 檢查的 project-root 路徑限制
 - 寫檔、編輯與 shell command 人工確認
 - 破壞性命令 guardrails
@@ -269,6 +272,7 @@ v0.1.2 後，0.1.x 只接受 critical bug、security fix、regression 與 docume
 | [CompactionPlan protocol](docs/COMPACTION_PLAN_PROTOCOL.md) | [CompactionPlan protocol](docs/COMPACTION_PLAN_PROTOCOL.zh-TW.md) |
 | [Compaction authorization](docs/COMPACTION_VALIDATION.md) | [Compaction authorization](docs/COMPACTION_VALIDATION.zh-TW.md) |
 | [Bounded semantic planning](docs/BOUNDED_SEMANTIC_PLANNING.md) | [Bounded semantic planning](docs/BOUNDED_SEMANTIC_PLANNING.zh-TW.md) |
+| [Execution contract](docs/EXECUTION_CONTRACT.md) | [Execution contract](docs/EXECUTION_CONTRACT.zh-TW.md) |
 | [RFC-001: Adaptive Context Planning](docs/rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.md) | [RFC-001：自適應 Context Planning](docs/rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.zh-TW.md) |
 
 ## 開發

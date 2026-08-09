@@ -322,21 +322,25 @@ Semantic Planner healthy?
 
 Semantic intelligence 必須允許故障，而 ContextOS 仍能安全工作。
 
-## M5：Validated Transformation and Execution — 規劃中
+## M5：Validated Transformation and Execution — D0-D2 已實作
 
-M3 authorization 證明 policy eligibility，不代表 recovery source 此刻仍存在。dev.5 執行任何 action 前必須重新驗證所選 source：
+M3 authorization 證明 policy eligibility，不代表 recovery source 此刻仍存在。Dev.5 新增另一層 permission boundary：
 
 ```text
 ValidatedPlan
-  -> recovery source revalidation
-  -> transformation
-  -> post-transform validation
-  -> execution
-  -> inventory rebuild
-  -> re-tokenization
+  -> Execution Preflight
+  -> ExecutablePlan
+  -> TransformationCandidate       （D3，未實作）
+  -> post-transform validation     （D4，未實作）
+  -> atomic execution              （D5，未實作）
+  -> inventory rebuild/re-tokenize （D6，未實作）
 ```
 
-Artifact recovery 要求存在與 integrity；repository recovery 要求 current source/path valid；memory recovery 要求 referenced state 存在；rebuildable recovery 要求 rebuild mechanism 可用。任一 failure 都必須 abort execution 並選擇 deterministic fallback。
+D0-D2 是 zero-mutation。Strict preflight 只接受 current、potentially sufficient、non-fallback 且完整覆蓋 inventory 的 ValidatedPlan。Artifact recovery 要求存在與 integrity；repository recovery 要求 contained、valid current source/path；memory recovery 要求 referenced state 存在；rebuildable recovery 要求 mechanism 可用。任一 failure 都回傳 `EXECUTION_PRECONDITION_FAILED`，且不產生 `ExecutablePlan`。
+
+`ValidatedPlan != ExecutablePlan`；recoverability classification 不等於 recovery proof；COMPRESS permission 不授權 arbitrary replacement content。完整 contract 與 frozen M4 manifest 記錄於 [Validated Transformation and Execution Contract](../EXECUTION_CONTRACT.zh-TW.md)。
+
+Recovery proof 是 point-in-time evidence，不是 lease。D5 必須在 commit 前立即重跑 preflight，或 atomically 重新檢查 bound inventory 與 sources；`ExecutablePlan` 僅能 single-use，binding stale 時整批 execution 必須 abort。
 
 ## Release-candidate benchmark design
 
@@ -368,10 +372,10 @@ SCU  = CG * WIR
 | M2 | Planner protocol | Strict schema 與 fake-plan fixtures |
 | M3 | Runtime Validator | Proposal 不等於 permission；fail-closed tests |
 | M4 | Qwen Planner | Bounded inventory、strict output、fallback |
-| M5 | Validated Transformer/Executor | Recovery revalidation、post-transform validation、abort-safe execution |
+| M5 | Validated Transformation/Execution | D0-D2 recovery preflight 已實作；D3-D6 candidate validation 與 abort-safe execution 待完成 |
 | RC | A/B/C benchmark | 相同 control envelope；公開 raw results |
 
-M0/M1 於 `0.2.0-dev.1` 完成，M2 於 `0.2.0-dev.2`、M3 於 `0.2.0-dev.3`、bounded proposal generation 於 `0.2.0-dev.4` 完成，各自維持 independently reviewable。dev.1–dev.4 都不修改 frozen deterministic context reduction，也不執行 semantic plan。
+M0/M1 於 `0.2.0-dev.1` 完成，M2 於 `0.2.0-dev.2`、M3 於 `0.2.0-dev.3`、bounded proposal generation 於 `0.2.0-dev.4` 完成，zero-mutation execution preflight 則是 `0.2.0-dev.5` 第一個 boundary。各階段維持 independently reviewable；dev.1–dev.5 D0-D2 都不執行 semantic plan。
 
 ## 影響
 

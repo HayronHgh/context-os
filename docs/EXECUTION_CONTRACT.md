@@ -1,0 +1,216 @@
+# Validated Transformation and Execution Contract
+
+[Traditional Chinese](EXECUTION_CONTRACT.zh-TW.md) · English
+
+Version: `0.2.0-dev.5`
+
+Status: D0 execution protocol, D1 RecoveryVerifier, and D2 ExecutionPreflight implemented. Transformation and mutation are absent.
+
+## Purpose
+
+Dev.5 introduces a new trust boundary before ContextOS performs any destructive context operation:
+
+```text
+ValidatedPlan
+      ↓
+Execution Preflight
+      ↓
+ExecutablePlan
+      ↓
+Transformation Candidate       (not implemented)
+      ↓
+Post-transform Validation      (not implemented)
+      ↓
+Atomic Execution               (not implemented)
+      ↓
+ExecutionReport                (not implemented)
+```
+
+The first implementation stops at `ExecutablePlan`. It does not transform or mutate context.
+
+## Core invariants
+
+```text
+ValidatedPlan != ExecutablePlan
+
+M3 recoverability classification
+!= execution-time recovery proof
+
+COMPRESS authorization
+!= authorization of arbitrary replacement content
+```
+
+The layers answer different questions:
+
+| Layer | Question |
+| --- | --- |
+| M3 Validator | May this action be attempted under policy? |
+| RecoveryVerifier | Is the Runtime recovery claim true now? |
+| ExecutionPreflight | Is the complete current plan eligible to proceed? |
+| Future Transformer | What candidate output could satisfy the authorized action? |
+| Future post-transform Validator | Is that candidate safe to commit? |
+| Future Executor | Can the validated candidate be applied atomically? |
+
+No later layer may reinterpret an earlier permission as broader authority.
+
+## M4 frozen experiment identity
+
+`config/m4-freeze.json` pins the `aa59f4d` baseline and SHA-256 hashes for:
+
+- `planner-v1`;
+- PlannerInventoryView selection and budgets;
+- the M2 CompactionPlan protocol;
+- the M3 authorization policy;
+- PAR/IPR and Planner telemetry semantics.
+
+`test/m4-freeze.test.js` fails if these inputs drift. A future prompt change requires a new identity such as `planner-v2`; it must not silently rewrite `planner-v1`.
+
+The manifest also pins Qwen retry/binding behavior and semantic proposal orchestration because they determine experiment identity and telemetry meaning, even when the prompt text itself is unchanged.
+
+## ExecutionPreflight admission gate
+
+`preflightValidatedPlan()` accepts only a strict Runtime-produced `ValidatedPlan` that:
+
+1. matches ValidatedPlan schema version 1 exactly;
+2. is bound to the current inventory ID and fingerprint;
+3. has exactly one decision for every current inventory unit;
+4. has status `AUTHORIZED_POTENTIALLY_SUFFICIENT`;
+5. has `fallbackRequired: false`;
+6. contains no rejected decision;
+7. has `actualReductionTokens: null`;
+8. passes every required current-source recovery check.
+
+An insufficient or rejected plan is not partially executable. Preflight does not cherry-pick apparently safe decisions from a failed plan.
+
+## Recovery proof requirement
+
+The Runtime asks for proof only when a destructive action carries a non-`none` recovery claim:
+
+```text
+COMPRESS | EXTERNALIZE | EVICT
+and
+recoverability != none
+      ↓
+current-source proof required
+```
+
+`COMPRESS` may be M3-authorized for some non-recoverable authorities. In that case the proof status is `NOT_REQUIRED` because no recovery claim exists; the future transformation output still requires independent post-transform validation before mutation.
+
+`KEEP` and audit-only `PROMOTE_PROPOSAL` do not require recovery proof and cannot become destructive execution steps.
+
+## RecoveryVerifier
+
+`RecoveryVerifier` receives cloned unit/reference data and dispatches to one read-only provider by Runtime-owned recoverability type:
+
+| Type | Required reference | Verification |
+| --- | --- | --- |
+| `artifact` | `artifactId` | artifact exists; stored content integrity is valid; optional reference SHA-256 matches |
+| `repository` | project-relative `path` | real path remains inside project; file exists; current SHA-256 is measured; optional expected SHA-256 matches |
+| `memory` | `stateKey` or `episodeId` | referenced durable state still exists |
+| `rebuildable` | `mechanism` | named reconstruction mechanism is currently registered |
+| `none` | none | no recovery claim to prove |
+
+Provider absence, missing reference, path escape, missing source, integrity drift, invalid provider evidence, and thrown verification errors all fail closed.
+
+A `RecoveryProof` is point-in-time admission evidence, not a lease and not a permanent capability. D5 must either rerun preflight immediately before commit or atomically compare fresh inventory/source bindings with the proof. An `ExecutablePlan` is single-use and must fail closed if those bindings have changed; it must not be cached for later execution.
+
+## RecoveryProof
+
+Every decision receives a deep-frozen proof result:
+
+```ts
+interface RecoveryProof {
+  schemaVersion: 1;
+  unitId: string;
+  action: CompactionAction;
+  sourceType: "artifact" | "repository" | "memory" | "rebuildable" | "none";
+  checkedAt: string;
+  status: "VERIFIED" | "NOT_REQUIRED" | "FAILED";
+  code: RecoveryFailureCode | null;
+  detail: string | null;
+  evidence: object | null;
+}
+```
+
+Proof evidence contains identifiers, hashes, sizes, paths, or mechanism names. It does not copy recovered content into the execution plan.
+
+Machine-readable failure codes:
+
+```text
+RECOVERY_REFERENCE_MISSING
+RECOVERY_PROVIDER_UNAVAILABLE
+RECOVERY_SOURCE_NOT_FOUND
+RECOVERY_SOURCE_INVALID
+RECOVERY_INTEGRITY_MISMATCH
+RECOVERY_VERIFICATION_FAILED
+```
+
+## ExecutablePlan
+
+Only a fully successful preflight produces this distinct, deep-frozen object:
+
+```ts
+interface ExecutablePlan {
+  schemaVersion: 1;
+  executablePlanId: string;
+  sourceValidatedPlanId: string;
+  inventory: InventoryIdentity;
+  status: "EXECUTABLE";
+  decisions: Array<{
+    unitId: string;
+    action: CompactionAction;
+    executionDisposition: "READY" | "NOOP" | "AUDIT_ONLY";
+    importance: CompactionImportance | null;
+    requestedTargetTokens: number | null;
+    potentialReductionUpperBound: number;
+    recoveryProof: RecoveryProof;
+  }>;
+  runtime: {
+    checkedAt: string;
+    requiredReductionTokens: number;
+    potentialReductionUpperBound: number;
+    actualReductionTokens: null;
+    zeroMutation: true;
+  };
+}
+```
+
+It contains no replacement content, transformed messages, artifact writes, memory writes, mutation callback, or execution authority beyond the named decisions.
+
+## Failure result
+
+Any gate failure returns:
+
+```text
+status: EXECUTION_PRECONDITION_FAILED
+executablePlan: null
+zeroMutation: true
+```
+
+Preflight reason codes include invalid shape, invalid or stale current inventory, insufficient/rejected plan, fallback requirement, decision/inventory mismatch, unauthorized decision, and recovery failure codes.
+
+## Zero-mutation boundary
+
+D0-D2 explicitly exclude:
+
+- Transformer or model calls;
+- TransformationCandidate or replacement content;
+- post-transform approval;
+- message or Context Unit mutation;
+- artifact, project-memory, or episode writes;
+- lifecycle or authority mutation;
+- inventory rebuild;
+- actual re-tokenization or actual-reduction claims.
+
+The implementation is read-only except for ordinary test fixtures created in temporary directories.
+
+## Remaining dev.5 sequence
+
+```text
+D3  Transformer -> TransformationCandidate
+D4  Post-transform Validator
+D5  Atomic Executor
+D6  Inventory rebuild + actual re-tokenization + ExecutionReport
+```
+
+D3 must define candidate schemas without granting write authority. D4 must validate candidate output independently. D5 is the first stage permitted to mutate active context.

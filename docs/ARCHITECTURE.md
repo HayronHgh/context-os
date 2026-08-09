@@ -113,6 +113,12 @@ M4 builds a Planner-specific view from an internal inventory snapshot. Per-unit 
 
 `QwenPlanner` uses a stateless OpenAI-compatible chat call with no tools, the versioned `planner-v1` system prompt, low temperature, strict JSON, and at most one correction attempt. Plan ID, inventory identity, and visible-unit membership are verified before the unchanged M3 Validator runs. Session audit records experimental attempts/results separately from semantic memory. Validator rejection stops and selects fallback; it never triggers autonomous replanning. See [Bounded semantic planning](BOUNDED_SEMANTIC_PLANNING.md).
 
+### Execution preflight (`src/recovery-verifier.js`, `src/execution-preflight.js`)
+
+Dev.5 D0-D2 adds a read-only boundary between `ValidatedPlan` and execution. A strict preflight admits only a current, potentially sufficient, non-fallback Runtime plan with complete inventory coverage. `RecoveryVerifier` then revalidates every applicable artifact, repository, memory, or rebuildable source against current state. Missing references/providers, integrity drift, path escape, stale inventory, rejected decisions, and insufficient plans fail the whole preflight.
+
+Only successful preflight returns a distinct deep-frozen `ExecutablePlan`. It contains decisions and recovery proofs but no replacement content, mutation callback, write authority, or actual-reduction claim. `config/m4-freeze.json` pins the immutable M4 experiment inputs. See [Validated Transformation and Execution Contract](EXECUTION_CONTRACT.md).
+
 ### Context manager (`src/context-manager.js`)
 
 - Estimates utilization from messages, tool schemas, tool choice, and fixed safety overhead.
