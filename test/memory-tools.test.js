@@ -6,6 +6,7 @@ import path from "node:path";
 import { MemoryStore } from "../src/memory-store.js";
 import { RepoMapper } from "../src/repo-mapper.js";
 import { ToolRunner } from "../src/tools.js";
+import { AgentRuntime } from "../src/agent-runtime.js";
 
 function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "qwen-context-os-"));
@@ -44,6 +45,103 @@ test("destructive commands are denied even after approval", async () => {
   const { root, runner } = fixture();
   try {
     await assert.rejects(() => runner.execute("run_command", { command: "git reset --hard" }), /Destructive command denied/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+function linkOrSkip(t, target, link, type) {
+  try {
+    fs.symlinkSync(target, link, type);
+    return true;
+  } catch (error) {
+    if (["EPERM", "EACCES", "ENOTSUP"].includes(error.code)) {
+      t.skip(`Symbolic links are unavailable in this environment: ${error.code}`);
+      return false;
+    }
+    throw error;
+  }
+}
+
+test("file symlinks cannot escape through read, write, or edit tools", async (t) => {
+  const { root, runner } = fixture();
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "context-os-outside-"));
+  try {
+    const target = path.join(outside, "secret.txt");
+    fs.writeFileSync(target, "secret", "utf8");
+    if (!linkOrSkip(t, target, path.join(root, "linked-secret.txt"), "file")) return;
+    await assert.rejects(() => runner.execute("read_file", { path: "linked-secret.txt" }), /symbolic link or junction/);
+    await assert.rejects(() => runner.execute("write_file", { path: "linked-secret.txt", content: "changed" }), /symbolic link or junction/);
+    await assert.rejects(() => runner.execute("edit_file", { path: "linked-secret.txt", oldText: "secret", newText: "changed" }), /symbolic link or junction/);
+    assert.equal(fs.readFileSync(target, "utf8"), "secret");
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test("directory symlinks or junctions cannot escape through nested paths", async (t) => {
+  const { root, runner } = fixture();
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "context-os-outside-"));
+  try {
+    fs.writeFileSync(path.join(outside, "secret.txt"), "secret", "utf8");
+    const type = process.platform === "win32" ? "junction" : "dir";
+    if (!linkOrSkip(t, outside, path.join(root, "outside-link"), type)) return;
+    await assert.rejects(() => runner.execute("read_file", { path: "outside-link/secret.txt" }), /symbolic link or junction/);
+    await assert.rejects(() => runner.execute("write_file", { path: "outside-link/new.txt", content: "escape" }), /symbolic link or junction/);
+    await assert.rejects(() => runner.execute("edit_file", { path: "outside-link/secret.txt", oldText: "secret", newText: "changed" }), /symbolic link or junction/);
+    assert.equal(fs.readFileSync(path.join(outside, "secret.txt"), "utf8"), "secret");
+    assert.equal(fs.existsSync(path.join(outside, "new.txt")), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test("an interrupted atomic write does not replace the last valid state", () => {
+  const { root, memory } = fixture();
+  try {
+    memory.updateState({ objective: "stable" });
+    fs.writeFileSync(`${memory.stateFile}.interrupted.tmp`, "{broken", "utf8");
+    assert.equal(memory.getState().objective, "stable");
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("corrupted working state fails loudly", () => {
+  const { root, memory } = fixture();
+  try {
+    fs.writeFileSync(memory.stateFile, "{broken", "utf8");
+    assert.throws(() => memory.getState(), /JSON/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("malformed episodes are skipped without hiding valid episodes", () => {
+  const { root, memory } = fixture();
+  try {
+    memory.saveEpisode({ task: "valid", solution: "kept" });
+    fs.writeFileSync(path.join(memory.episodesDir, "episode-zzzz-corrupt.json"), "{broken", "utf8");
+    const episodes = memory.listEpisodes(8);
+    assert.equal(episodes.length, 1);
+    assert.equal(episodes[0].solution, "kept");
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("oversized tool results retain a full artifact and a bounded preview", () => {
+  const { root, memory } = fixture();
+  try {
+    const runtime = { projectRoot: root, memory, config: { maxToolOutputChars: 120 } };
+    const result = { ok: true, output: "x".repeat(1000) };
+    const formatted = AgentRuntime.prototype.formatToolResult.call(runtime, "test_tool", {}, result);
+    const promptValue = JSON.parse(formatted);
+    const artifactFile = path.join(root, promptValue.artifact);
+    assert.equal(promptValue.preview.length <= 120, true);
+    assert.equal(fs.readFileSync(artifactFile, "utf8"), JSON.stringify(result, null, 2));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

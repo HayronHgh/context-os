@@ -50,16 +50,23 @@ flowchart TD
 
 ### Context Manager（`src/context-manager.js`）
 
-- 估算 prompt 使用率。
-- Prune 過期 tool output，同時維持 protocol 結構。
+- 由 messages、tool schemas、tool choice 與固定安全餘量估算 prompt 使用率。
+- 先壓縮過期 output，再移除完整舊 tool exchanges，同時維持 protocol 結構。
 - 以完整 user-turn 邊界執行壓縮。
-- 在重建 context 中插入 Coding State Transfer。
+- 在重建 context 中插入經 schema 驗證的衍生 Coding State Transfer。
 - 壓縮後仍超過 failure threshold 時停止。
+
+### State-transfer validator（`src/state-transfer.js`）
+
+- 要求所有 continuation-state 欄位與預期型別。
+- 拒絕 malformed JSON、缺少欄位、錯誤型別與多餘欄位。
+- Model 可重試一次；仍失敗時不取代 history，直接停止 compaction。
 
 ### Tool Runner（`src/tools.js`）
 
 - 實作讀檔、glob、grep、寫檔、編輯、命令、repo map、memory 與 episode。
-- 所有 file path 都對 selected project root 解析。
+- 所有 file path 都以 lexical 與 real filesystem path 對 selected project root 檢查。
+- Read、write、edit 會拒絕 file/directory symlink 與 Windows junction escape。
 - 寫檔、編輯與命令需要確認。
 - 拒絕少量已知的破壞性命令 pattern。
 

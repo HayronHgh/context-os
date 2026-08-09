@@ -14,7 +14,9 @@ Model output 屬於不可信輸入。Runtime 會解析並路由 tool name 與 JS
 
 ### File tools
 
-File path 會以 selected project root 解析。離開該 root 的路徑會被拒絕，directory traversal 也不跟隨 symbolic link。
+File path 會先通過 lexical project-root containment，再把每個已存在的 path component 交由 filesystem 解析，並與 real project root 比對。讀取、寫入與編輯都會拒絕透過 symbolic-link file、symbolic-link directory 或 Windows junction 逃逸；新目標則檢查其最近的既存 parent。
+
+這是 defense in depth，不是沒有 race condition 的 OS sandbox。若惡意 process 能在檢查同時替換 path component，仍可能存在 time-of-check/time-of-use 風險。
 
 這個 containment 只適用 ContextOS file tools，不會限制已核准 shell command 內的任意路徑。
 

@@ -4,6 +4,19 @@
 
 所有重要變更都會記錄於此。
 
+## [0.1.1] - 2026-08-09
+
+### Correctness hardening
+
+- Context 使用率納入完整 tool schemas、`tool_choice` 與固定 prompt overhead
+- 區分 stale-output 壓縮、完整 tool-exchange pruning、semantic compaction 與 hard transfer
+- 驗證 Coding State Transfer 欄位與型別；失敗重試一次，再失敗則保留原 history 並 fail loud
+- 將 State Transfer 標示為衍生狀態，可變事實必須以 repository/tool evidence 核對
+- File tools 使用 real-path containment，防止 symlink 與 Windows junction 逃逸
+- Malformed episode 不會遮蔽有效記憶；corrupted working state 維持 fail loud
+- Core invariant tests 從 5 個擴充到 22 個
+- 釐清目前 64K 驗證 profile 與 32K 故障排除 fallback
+
 ## [0.1.0] - 2026-08-09
 
 ### 新增

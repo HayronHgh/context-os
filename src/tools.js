@@ -89,6 +89,7 @@ function globToRegExp(glob) {
 export class ToolRunner {
   constructor({ projectRoot, memory, mapper, config, confirm, autoApprove = false }) {
     this.projectRoot = path.resolve(projectRoot);
+    this.realProjectRoot = fs.realpathSync.native(this.projectRoot);
     this.memory = memory;
     this.mapper = mapper;
     this.config = config;
@@ -99,6 +100,26 @@ export class ToolRunner {
   resolveProjectPath(relative = ".") {
     const candidate = path.resolve(this.projectRoot, relative);
     if (!isSubpath(this.projectRoot, candidate)) throw new Error(`Path escapes project root: ${relative}`);
+    const pathWithinRoot = path.relative(this.projectRoot, candidate);
+    let current = this.projectRoot;
+    for (const segment of pathWithinRoot.split(path.sep).filter(Boolean)) {
+      current = path.join(current, segment);
+      try {
+        fs.lstatSync(current);
+      } catch (error) {
+        if (error.code === "ENOENT") break;
+        throw error;
+      }
+      let real;
+      try {
+        real = fs.realpathSync.native(current);
+      } catch (error) {
+        throw new Error(`Path contains an invalid symbolic link: ${relative} (${error.message})`);
+      }
+      if (!isSubpath(this.realProjectRoot, real)) {
+        throw new Error(`Path escapes project root through a symbolic link or junction: ${relative}`);
+      }
+    }
     return candidate;
   }
 

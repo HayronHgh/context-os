@@ -2,7 +2,7 @@
 
 [繁體中文](TECHNICAL_REPORT.zh-TW.md) · English
 
-Version: 0.1.0
+Version: 0.1.1
 
 Status: Experimental research MVP
 
@@ -16,6 +16,7 @@ ContextOS implements the first two phases of an external context runtime for loc
 - repository file/symbol intelligence
 - artifact externalization
 - budget-triggered context compaction
+- tool-schema-aware input accounting and schema-validated state transfer
 - Windows lifecycle and diagnostic scripts
 
 It does not yet implement AST/LSP graphs, semantic retrieval, a transactional memory database, multi-agent orchestration, a custom Web UI, or a strong process sandbox.
@@ -32,6 +33,7 @@ It does not yet implement AST/LSP graphs, semantic retrieval, a transactional me
 | `src/repo-mapper.js` | File scan and approximate symbol extraction |
 | `src/tools.js` | Eleven model-callable tools and guardrails |
 | `src/prompts.js` | Runtime and state-transfer prompts |
+| `src/state-transfer.js` | Strict state-transfer parsing and schema validation |
 | `src/utils.js` | Atomic I/O, path checks, IDs, token estimate |
 
 The core runtime is roughly one thousand lines of dependency-free ESM JavaScript. PowerShell scripts manage setup, server start/stop, diagnostics, and model download.
@@ -65,18 +67,19 @@ The runtime reconstructs the system prompt from current state, project memory, r
 
 ```text
 <55%   no action
-55%    tool-output garbage collection
-65%    stale-result pruning
-72%    semantic Coding State Transfer
-80%    mandatory hard transfer
+55%    compress stale oversized tool output
+65%    evict complete stale tool exchanges
+72%    semantic transfer with multiple recent user turns
+80%    hard transfer with only the latest user work window
 90%    fail closed
 ```
 
-Old complete turns are converted into structured continuation state. Recent messages remain verbatim. Large tool output remains on disk even after its prompt preview is shortened.
+The utilization numerator includes messages, complete tool schemas, `tool_choice`, and a fixed prompt safety margin. Old complete turns are converted into schema-validated derived continuation state. Invalid compaction is retried once and then fails loudly without replacing history. Large tool output remains on disk even after its prompt preview is shortened.
 
 ## Security properties
 
-- File tools enforce project-root containment.
+- File tools enforce lexical and real-path project-root containment for existing components.
+- Symbolic-link files, directory links, and Windows junction escapes are rejected for reads, writes, and edits.
 - Symbolic links are not traversed during scans.
 - Mutating tools require approval by default.
 - Common destructive commands are denied.
@@ -86,15 +89,9 @@ These are guardrails, not a sandbox. Approved shell commands have the host user'
 
 ## Validation
 
-The current test suite verifies:
+The suite now defines 22 invariant tests covering tool-schema accounting, threshold behavior, tool-call boundary preservation, malformed state transfer and retry/fail-loud behavior, lexical and symlink/junction containment, memory corruption behavior, artifact retention, and destructive-command denial. A file-symlink test is conditionally skipped only when the host OS denies symlink creation; the Windows junction escape path remains tested.
 
-1. Forced compaction preserves system context and the latest user turn.
-2. Stale tool output can be shortened without changing message roles.
-3. Working state and episodes survive store reinitialization.
-4. File tools reject project-root escape.
-5. Destructive commands are rejected even after approval.
-
-The original development environment also completed an end-to-end tool-call smoke test against llama.cpp + Qwen3.6 at 64K context.
+The current validated local profile completed an end-to-end tool-call smoke test against llama.cpp + Qwen3.6 with 64K context, 8K agent output, and a 4K reasoning budget. The tutorial's 32K value is a troubleshooting fallback, not the configuration used for that validation.
 
 ## Research hypothesis
 
@@ -106,18 +103,17 @@ This remains a hypothesis until the planned benchmark measures task completion, 
 
 ## Primary limitations
 
-- Token estimates are approximate.
+- Token estimates include tools and fixed overhead but remain tokenizer-approximate.
 - Repository symbols are regex-derived.
 - Episodes are selected by recency.
 - Responses are non-streaming.
 - State extraction is partly model-initiated.
-- Compaction output is not schema validated.
 - No cross-process locking exists for shared project state.
 - Windows is the only validated management environment.
 
 ## Next engineering milestones
 
-1. Context Recovery Benchmark and metrics.
+1. Context Recovery Benchmark, tokenizer-exact near-threshold accounting, and estimator metrics.
 2. Validated end-of-turn state extraction.
 3. Session replay and interruption recovery.
 4. tree-sitter/LSP and Git-aware repository intelligence.

@@ -84,7 +84,13 @@ export class MemoryStore {
       .sort()
       .slice(-limit)
       .reverse()
-      .map((name) => readJson(path.join(this.episodesDir, name)))
+      .map((name) => {
+        try {
+          return readJson(path.join(this.episodesDir, name));
+        } catch {
+          return null;
+        }
+      })
       .filter(Boolean);
   }
 

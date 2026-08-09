@@ -51,10 +51,10 @@ The runtime is not tied to a specific model name, but the backend must return Op
 - Structured episodic memory
 - Repository file/symbol map
 - Tool output externalization into durable artifacts
-- Five-stage context budget and compaction policy
-- Structured Coding State Transfer instead of generic summaries
+- Tool-schema-aware, five-stage context budget and compaction policy
+- Schema-validated Coding State Transfer instead of generic summaries
 - OpenAI-compatible tool-calling loop
-- Project-root path containment for file tools
+- Real-path-aware project-root containment for file tools
 - Approval prompts for writes, edits, and shell commands
 - Destructive-command guardrails
 - Windows start, stop, diagnostics, setup, and resumable model download scripts
@@ -183,14 +183,14 @@ Each target repository receives:
 
 ## Context policy
 
-Input budget is `contextWindow - reservedOutputTokens`.
+Input budget is `contextWindow - reservedOutputTokens`. Utilization includes messages, the complete tool-definition payload, `tool_choice`, and a configurable fixed chat-template safety margin.
 
 | Utilization | Action |
 | ---: | --- |
-| 55% | Garbage-collect stale tool output |
-| 65% | Prune stale conversation results |
-| 72% | Generate structured Coding State Transfer |
-| 80% | Force hard state transfer |
+| 55% | Compress stale, oversized tool output |
+| 65% | Evict complete stale tool-call/result exchanges |
+| 72% | Compact older turns into structured Coding State Transfer |
+| 80% | Force transfer and retain only the latest user work window |
 | 90% | Stop instead of silently losing state |
 
 Full tool output remains available in `.qwen-agent/artifacts/` after its prompt representation is shortened.
@@ -231,7 +231,7 @@ The project treats context lifecycle as a first-class system problem: tool artif
 ## Roadmap
 
 - Metrics and a Context Recovery Benchmark
-- Schema-validated state extraction
+- Tokenizer-exact near-threshold accounting and estimator calibration
 - Session replay and state diffs
 - tree-sitter and LSP repository intelligence
 - SQLite FTS5/BM25 retrieval

@@ -3,6 +3,7 @@ import { COMPACTION_SYSTEM_PROMPT, buildSystemPrompt } from "./prompts.js";
 import { RepoMapper } from "./repo-mapper.js";
 import { TOOL_DEFINITIONS, ToolRunner } from "./tools.js";
 import { truncateMiddle } from "./utils.js";
+import { formatStateTransfer, parseStateTransfer } from "./state-transfer.js";
 
 function assistantContent(message) {
   if (typeof message.content === "string" && message.content.trim()) return message.content;
@@ -76,20 +77,32 @@ export class AgentRuntime {
       content: truncateMiddle(message.content ?? "", 14000),
       tool_calls: message.tool_calls
     }));
-    const { message } = await this.client.chat([
+    const request = [
       { role: "system", content: COMPACTION_SYSTEM_PROMPT },
       { role: "user", content: JSON.stringify(transcript) }
-    ], { maxTokens: 2400, temperature: 0.1 });
-    const text = stripCodeFence(assistantContent(message));
-    try {
-      return JSON.stringify(JSON.parse(text), null, 2);
-    } catch {
-      return text || JSON.stringify({ currentState: "Compaction returned no usable content." });
+    ];
+    let lastError;
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      const retryInstruction = attempt === 1 ? [] : [{
+        role: "user",
+        content: `Your previous state transfer was invalid: ${lastError.message}\nReturn a corrected JSON object matching every required field and no additional fields.`
+      }];
+      const { message } = await this.client.chat([...request, ...retryInstruction], { maxTokens: 2400, temperature: 0.1 });
+      const text = stripCodeFence(assistantContent(message));
+      try {
+        return formatStateTransfer(parseStateTransfer(text));
+      } catch (error) {
+        lastError = error;
+      }
     }
+    throw new Error(`State transfer validation failed after 2 attempts: ${lastError.message}`);
   }
 
   async prepareContext(options = {}) {
-    const prepared = await this.context.prepare(this.messages, (older) => this.compactMessages(older), options);
+    const prepared = await this.context.prepare(this.messages, (older) => this.compactMessages(older), {
+      ...options,
+      tools: TOOL_DEFINITIONS
+    });
     this.messages = prepared.messages;
     if (prepared.stateTransfer) this.memory.updateState({ stateTransfer: prepared.stateTransfer });
     if (prepared.report.actions.length) {

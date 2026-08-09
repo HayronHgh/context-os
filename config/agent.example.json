@@ -3,6 +3,7 @@
   "model": "local-model",
   "contextWindow": 65536,
   "reservedOutputTokens": 12288,
+  "fixedPromptOverheadTokens": 512,
   "maxOutputTokens": 8192,
   "maxToolOutputChars": 12000,
   "maxToolIterations": 20,

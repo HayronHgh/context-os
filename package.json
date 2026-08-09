@@ -1,6 +1,6 @@
 {
   "name": "context-os",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Persistent context and memory runtime for long-running local coding agents",
   "type": "module",

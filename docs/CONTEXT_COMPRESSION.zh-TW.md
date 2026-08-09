@@ -10,10 +10,11 @@
 
 ## Budget
 
-ContextOS 以 UTF-8 byte length 估算 token。這對混合程式碼與中文刻意偏保守，但並非 tokenizer 精確值。
+ContextOS 以 UTF-8 byte length 估算 token。這對混合程式碼與中文刻意偏保守，但並非 tokenizer 精確值。估算範圍包含 serialized messages、完整 function-tool definitions、`tool_choice` 與固定 chat-template 安全餘量。
 
 ```text
 usable input budget = contextWindow - reservedOutputTokens
+estimated input = messages + tool schemas + tool_choice + fixed prompt overhead
 ```
 
 預設 64K profile 保留 12K output，留下約 53K estimated input budget。
@@ -23,9 +24,9 @@ usable input budget = contextWindow - reservedOutputTokens
 | 使用率 | 階段 | 行為 |
 | ---: | --- | --- |
 | 55% | Garbage collection | 縮短過期的大型 tool messages |
-| 65% | Pruning | 移除舊結果中可丟棄細節 |
-| 72% | Semantic compaction | 產生 Coding State Transfer |
-| 80% | Hard transfer | 強制執行 state transfer |
+| 65% | Pruning | 將完整的舊 assistant-tool/result exchange 換成有上限的 marker |
+| 72% | Semantic compaction | 產生 Coding State Transfer，保留多個最近 user turns |
+| 80% | Hard transfer | 產生 transfer，只保留最新 user work window |
 | 90% | Failure | 停止，而非靜默丟失必要狀態 |
 
 ## Artifact 外部化
@@ -59,7 +60,7 @@ Compactor 被要求回傳包含以下欄位的 JSON：
 }
 ```
 
-結果會以權威 continuation message 插回 context，也會複製到持久 working state。
+Runtime 會驗證所有必要欄位與型別。無效輸出會重試一次；第二次仍無效時，compaction 會失敗且不取代原 conversation。有效結果會以**衍生 continuation state**插回 context，也會複製到持久 working state；可變事實仍必須以 repository 與 tool evidence 核對。
 
 ## 為什麼不用 FIFO context shift？
 
@@ -68,8 +69,8 @@ FIFO eviction 只知道 token 位置，不知道因果重要性。它可能保�
 ## 已知弱點
 
 - 同一個模型同時執行任務與 compaction。
-- State Transfer 尚未做 JSON Schema validation。
-- Token accounting 為估算。
+- Token accounting 已包含 tool schemas 與安全餘量，但仍為 tokenizer 近似值。
+- 接近上限時仍可能與 model-server tokenizer 不同；後續規劃加入 tokenizer-exact fallback。
 - Compaction 改變 prompt prefix，可能降低 KV reuse。
 - 尚無 benchmark 證明預設門檻最佳。
 

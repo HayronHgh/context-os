@@ -2,7 +2,7 @@
 
 繁體中文 · [English](TECHNICAL_REPORT.md)
 
-版本：0.1.0
+版本：0.1.1
 
 狀態：Experimental Research MVP
 
@@ -16,6 +16,7 @@ ContextOS 實作本機 coding agent 外部 Context Runtime 的前兩個階段：
 - Repository file/symbol intelligence
 - Artifact 外部化
 - 由 budget 觸發的 context compaction
+- 納入 tool schema 的 input accounting 與經 schema 驗證的 state transfer
 - Windows lifecycle 與 diagnostics scripts
 
 尚未實作 AST/LSP graph、semantic retrieval、transactional memory database、多 Agent orchestration、自製 Web UI 或強 process sandbox。
@@ -32,6 +33,7 @@ ContextOS 實作本機 coding agent 外部 Context Runtime 的前兩個階段：
 | `src/repo-mapper.js` | File scan 與近似 symbol extraction |
 | `src/tools.js` | 11 個模型工具與 guardrails |
 | `src/prompts.js` | Runtime 與 state-transfer prompts |
+| `src/state-transfer.js` | 嚴格 state-transfer parsing 與 schema validation |
 | `src/utils.js` | Atomic I/O、path checks、IDs、token estimate |
 
 核心 Runtime 約一千行、使用 ESM 且零第三方 dependency。PowerShell scripts 管理 setup、server start/stop、diagnostics 與 model download。
@@ -65,18 +67,19 @@ Runtime 從 current state、project memory、recent episodes 與有上限的 rep
 
 ```text
 <55%   不處理
-55%    tool-output garbage collection
-65%    stale-result pruning
-72%    semantic Coding State Transfer
-80%    mandatory hard transfer
+55%    壓縮過期的大型 tool output
+65%    移除完整的過期 tool exchanges
+72%    semantic transfer，保留多個最近 user turns
+80%    hard transfer，只保留最新 user work window
 90%    fail closed
 ```
 
-較舊的完整 turns 會轉成 structured continuation state，最近 messages 保留原文。即使 tool output 的 prompt preview 被縮短，完整內容仍保留在磁碟。
+使用率的分子包含 messages、完整 tool schemas、`tool_choice` 與固定 prompt 安全餘量。較舊的完整 turns 會轉成通過 schema 驗證的衍生 continuation state；無效 compaction 會重試一次，之後 fail loud 且不取代 history。即使 tool output 的 prompt preview 被縮短，完整內容仍保留在磁碟。
 
 ## 安全性質
 
-- File tools 強制 project-root containment。
+- File tools 對既存 components 強制 lexical 與 real-path project-root containment。
+- Read、write、edit 會拒絕 symbolic-link file、directory link 與 Windows junction escape。
 - Scan 不跟隨 symbolic link。
 - Mutation tools 預設需要 approval。
 - 常見 destructive commands 會被拒絕。
@@ -86,15 +89,9 @@ Runtime 從 current state、project memory、recent episodes 與有上限的 rep
 
 ## 驗證
 
-目前測試驗證：
+目前共有 22 個 invariant tests，涵蓋 tool-schema accounting、threshold 行為、tool-call boundary、malformed state transfer 的 retry/fail-loud、lexical 與 symlink/junction containment、memory corruption、artifact retention 與 destructive-command denial。只有 host OS 禁止建立 file symlink 時才會條件式跳過該項；Windows junction escape 仍會測試。
 
-1. Force compaction 保留 system context 與最新 user turn。
-2. 可縮短 stale tool output 而不改變 message role。
-3. Working state 與 episodes 可跨 store reinitialization 保存。
-4. File tools 拒絕離開 project root。
-5. Destructive command 即使核准仍被拒絕。
-
-原始開發環境也以 llama.cpp + Qwen3.6、64K context 完成 tool-call 端到端 smoke test。
+目前驗證過的本機 profile 已以 llama.cpp + Qwen3.6、64K context、8K Agent output、4K reasoning budget 完成 tool-call 端到端 smoke test。教程中的 32K 是故障排除 fallback，不是該次驗證使用的配置。
 
 ## 研究假設
 
@@ -106,18 +103,17 @@ Runtime 從 current state、project memory、recent episodes 與有上限的 rep
 
 ## 主要限制
 
-- Token estimate 為近似。
+- Token estimate 已包含 tools 與固定 overhead，但仍為 tokenizer 近似值。
 - Repository symbol 由 regex 產生。
 - Episodes 依 recency 選擇。
 - Response 尚未 streaming。
 - State extraction 部分依賴模型主動性。
-- Compaction output 未做 schema validation。
 - Shared project state 沒有 cross-process lock。
 - 只有 Windows 管理環境完成驗證。
 
 ## 下一階段
 
-1. Context Recovery Benchmark 與 metrics。
+1. Context Recovery Benchmark、接近門檻時的 tokenizer 精確計數與 estimator metrics。
 2. Validated end-of-turn state extraction。
 3. Session replay 與 interruption recovery。
 4. tree-sitter/LSP 與 Git-aware repository intelligence。
