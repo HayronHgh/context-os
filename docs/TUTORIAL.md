@@ -106,17 +106,19 @@ Run:
 
 The server runs in the background. Logs are written to `logs/`, and the managed PID is stored under `runtime/`.
 
-Wait for a ready health response, then run:
+Wait for a ready health response, then launch the Web Gateway:
 
 ```text
-02_start_agent.bat
+03_start_gateway.bat
 ```
 
-The default target is the bundled `workspace/`. To select a repository:
+The browser opens at `http://127.0.0.1:8787`. The default target is the bundled `workspace/`. To select a repository immediately:
 
 ```bat
-02_start_agent.bat "C:\Projects\my-app"
+03_start_gateway.bat "C:\Projects\my-app"
 ```
+
+The browser is presentation-only. Creating a session gives that session one Runtime-owned conversation, inventory, memory binding, event stream, and approval channel. To retain the terminal interface instead, run `02_start_agent.bat` with the same optional project path.
 
 ## 6. First task
 
@@ -130,7 +132,7 @@ The runtime creates `.qwen-agent/` inside the selected repository. Add the gener
 
 ## 7. Approval prompts
 
-Before writes, exact edits, or commands, the CLI asks:
+Before writes, exact edits, or commands, the Browser shows an approval card containing the exact Runtime description. Approve or deny it there. The terminal UI continues to ask:
 
 ```text
 Approve edit_file: src/example.js? [y/N]
@@ -141,6 +143,8 @@ Use `--yes` only in a controlled environment:
 ```powershell
 node .\src\index.js --project C:\Projects\my-app --yes
 ```
+
+The Browser Gateway deliberately has no auto-approve switch. Pending approvals are single-use and become Deny after five minutes or when the session closes.
 
 ## 8. One-shot mode
 

@@ -4,6 +4,19 @@
 
 All notable changes to this project will be documented here.
 
+## [0.2.0-dev.6] - 2026-08-10
+
+### Runtime Chat Gateway
+
+- Add a loopback-only `node:http` Gateway at `127.0.0.1:8787` with no runtime dependencies.
+- Give each browser session one owned `AgentRuntime`, message history, Context Inventory registry, and project-local MemoryStore while sharing only LlamaClient/llama-server.
+- Add bounded replayable SSE for assistant, tool, context, approval, and turn lifecycle events without claiming token streaming.
+- Bridge mutation confirmation to unique browser approvals with timeout-deny, single-use decisions, and closed-session denial.
+- Add a responsive vanilla HTML/CSS/JS chat UI with live tool trace, explicit approvals, safe text rendering, and no browser-owned transcript.
+- Reject cross-site requests and untrusted Host headers; require JSON for mutation endpoints and ship a restrictive browser CSP.
+- Add one-click Windows gateway start/stop scripts and bilingual Gateway documentation.
+- Keep llama.cpp inference-only and leave experimental D0-D6 interactive orchestration outside this milestone.
+
 ## [0.2.0-dev.5] - 2026-08-10
 
 ### Zero-mutation execution preparation

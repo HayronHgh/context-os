@@ -2,7 +2,7 @@
 
 [繁體中文](TECHNICAL_REPORT.zh-TW.md) · English
 
-Version: 0.2.0-dev.5
+Version: 0.2.0-dev.6
 
 Status: Experimental research MVP
 
@@ -129,6 +129,12 @@ The project hypothesis is:
 > Structured external state improves coding continuation after context reset compared with relying on conversation history or FIFO token eviction.
 
 This remains a hypothesis until the planned benchmark measures task completion, lost constraints, repeated investigation, recovery tokens, and recovery time across multiple compression strategies.
+
+## Runtime Chat Gateway
+
+Dev.6 adds a thin browser adapter rather than a second agent implementation. `GatewayServer` owns HTTP routing, static assets, Host/origin validation, JSON limits, SSE transport, and session lookup. Each `RuntimeSession` owns exactly one existing `AgentRuntime`, its turn lock, bounded event history, and pending approval promises. Browser requests contain only the next user turn; message history, Context Inventory, tool evidence, durable memory, and context generation never move into presentation state. The shared `LlamaClient` continues to call llama-server on port 8080 with non-streaming OpenAI-compatible completions.
+
+The Gateway improves capability honesty because Browser work now passes through the Runtime tool/evidence contract instead of llama.cpp's bare UI. It does not make model prose trustworthy by itself: factual repository claims still require actual tool evidence. It also does not connect D0-D6 to the interactive turn loop; that orchestration remains a separate reviewed integration problem. See [Runtime Chat Gateway](GATEWAY.md).
 
 ## Primary limitations
 

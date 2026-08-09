@@ -33,9 +33,9 @@ Prompt Context   = 可拋棄的工作視圖
 
 ## 目前狀態
 
-**Experimental · v0.2.0-dev.5 D0-D6 Execution Finalization · Windows-first**
+**Experimental · v0.2.0-dev.6 Runtime Chat Gateway · Windows-first**
 
-Deterministic 控制組仍凍結在 [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2)，M4 experiment inputs 則固定於 `aa59f4d`。v0.2 開發線目前已到 model-free execution finalization：D5 atomic commit exact validated context，D6 再綁定該 commit 的 generation、以原有 registry rebuild Context Inventory，並使用相同 canonical ContextManager estimator 與 tool envelope 回報 signed actual reduction。Artifact creation 與 memory promotion 仍不存在。
+Deterministic 控制組仍凍結在 [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2)，M4 experiment inputs 固定於 `aa59f4d`；D0-D6 execution contract 則維持合併後的 dev.5 baseline。Dev.6 新增可從 Browser 操作、具 evidence boundary 的 Runtime Gateway，不修改上述 experiment inputs，也不假裝 D0-D6 已接入互動 turn。
 
 已驗證環境：
 
@@ -49,6 +49,7 @@ Runtime 沒有綁死特定模型名稱，但 backend 必須回傳 OpenAI-style c
 
 ## 功能
 
+- 只接受 loopback 的 Browser Gateway：每個 session 一個 AgentRuntime、SSE tool trace 與 Browser approval bridge
 - 跨 conversation 的持久 working state
 - 可人工編輯的 project memory
 - 結構化 episodic memory
@@ -95,13 +96,15 @@ Runtime 沒有綁死特定模型名稱，但 backend 必須回傳 OpenAI-style c
 
 ```mermaid
 flowchart TD
-    U["使用者 / CLI"] --> A["Agent Runtime"]
+    B["Browser :8787"] --> G["Runtime Chat Gateway"]
+    U["CLI"] --> A["Agent Runtime"]
+    G --> A
     A --> C["Context Manager"]
     A --> T["Tool Runner"]
     A --> M["Memory Store"]
     A --> R["Repository Mapper"]
     A --> L["OpenAI-compatible Client"]
-    L --> S["本機模型服務"]
+    L --> S["llama-server :8080"]
     S --> Q["本機 Coding Model"]
     T --> P["目標 Repository"]
     R --> P
@@ -150,16 +153,16 @@ config/server.json
 ```text
 04_health_check.bat
 01_start_server.bat
-02_start_agent.bat
+03_start_gateway.bat
 ```
 
-操作其他 repository：
+Gateway 會開啟 `http://127.0.0.1:8787`。操作其他 repository：
 
 ```bat
-02_start_agent.bat "C:\path\to\your\repository"
+03_start_gateway.bat "C:\path\to\your\repository"
 ```
 
-使用 `03_stop_server.bat` 停止本專案管理的 server。
+若偏好終端 UI，可使用 `02_start_agent.bat`，同樣可傳入 project path。`06_stop_gateway.bat` 停止 Gateway，`03_stop_server.bat` 停止 llama-server。
 
 ## Agent 指令
 
@@ -276,6 +279,7 @@ v0.1.2 後，0.1.x 只接受 critical bug、security fix、regression 與 docume
 
 | English | 繁體中文 |
 | --- | --- |
+| [Runtime Chat Gateway](docs/GATEWAY.md) | [Runtime Chat Gateway](docs/GATEWAY.zh-TW.md) |
 | [Architecture](docs/ARCHITECTURE.md) | [系統架構](docs/ARCHITECTURE.zh-TW.md) |
 | [Context compression](docs/CONTEXT_COMPRESSION.md) | [Context 壓縮](docs/CONTEXT_COMPRESSION.zh-TW.md) |
 | [Memory model](docs/MEMORY_MODEL.md) | [記憶模型](docs/MEMORY_MODEL.zh-TW.md) |

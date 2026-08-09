@@ -45,4 +45,11 @@ try {
     Write-Host "API health: OFFLINE ($($_.Exception.Message))" -ForegroundColor Yellow
 }
 
+try {
+    $Gateway = Invoke-RestMethod -Uri 'http://127.0.0.1:8787/api/health' -TimeoutSec 3
+    Write-Host "Gateway: $($Gateway.status) - http://127.0.0.1:8787" -ForegroundColor Green
+} catch {
+    Write-Host 'Gateway: OFFLINE (run 03_start_gateway.bat for the Browser UI)' -ForegroundColor Yellow
+}
+
 Write-Host "Server config: ctx=$($Config.contextSize), output=$($Config.predict), reasoning-budget=$($Config.reasoningBudget), slots=$($Config.parallel), KV=$($Config.cacheTypeK)/$($Config.cacheTypeV), vision=$($Config.vision)"

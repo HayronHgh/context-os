@@ -51,6 +51,10 @@ File path 會先通過 lexical project-root containment，再把每個已存在�
 
 Example server 綁定 `127.0.0.1` 並將 CORS 限為 localhost，但沒有設定 API key 或 TLS。若沒有 authentication、TLS、firewall 與明確 threat model，不要改為 `0.0.0.0` 或開放 LAN。
 
+Runtime Chat Gateway 同樣只綁定 `127.0.0.1`。它會驗證 Host header、拒絕 cross-site Browser request、要求會改變狀態的 API 使用 `application/json`、送出嚴格 Content Security Policy，並以純文字顯示模型輸出。這些控制可降低 drive-by Browser 與 DNS rebinding 風險，但不提供 authentication，也不能保護 shared／multi-user machine。
+
+每個 Browser mutation approval 都是 single-use、綁定 session，並在五分鐘或 session close 後自動 Deny。Approval 仍代表允許模型以目前使用者的 OS 權限執行動作；請閱讀完整 description，對任何非預期行為選擇 Deny。
+
 ## Approval modes
 
 預設會在 `write_file`、`edit_file`、`run_command` 前詢問。

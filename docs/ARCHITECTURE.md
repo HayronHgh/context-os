@@ -27,6 +27,7 @@ This separation allows the runtime to compact or reset a conversation without tr
 | I6 | File and artifact tools cannot escape the selected project root. |
 | I7 | Context pressure cannot silently exceed the safety envelope. |
 | I8 | Corrupted auxiliary memory cannot hide unrelated valid memory. |
+| I9 | Browser presentation state cannot replace or resubmit Runtime-owned conversation state. |
 
 ## Durability model
 
@@ -46,18 +47,30 @@ Persistence and rendering are independent. Results at or below `artifactPersiste
 
 ```mermaid
 flowchart TD
+    WEB["Browser / web/"] --> GW["GatewayServer :8787"]
+    GW --> RS["RuntimeSession"]
+    RS --> AR
     CLI["CLI / index.js"] --> AR["AgentRuntime"]
     AR --> CM["ContextManager"]
     AR --> TR["ToolRunner"]
     AR --> MS["MemoryStore"]
     AR --> RM["RepoMapper"]
     AR --> LC["LlamaClient"]
-    LC --> API["OpenAI-compatible API"]
+    LC --> API["llama-server :8080 OpenAI-compatible API"]
     API --> MODEL["Local model"]
     TR --> REPO["Target repository"]
     RM --> REPO
     MS --> DISK[".qwen-agent/"]
 ```
+
+### Runtime Chat Gateway (`src/gateway-server.js`, `src/runtime-session.js`)
+
+- Serves a dependency-free browser UI only on loopback.
+- Creates one AgentRuntime and conversation state per RuntimeSession.
+- Keeps LlamaClient/llama-server shared while isolating session messages, inventory, memory binding, events, and approvals.
+- Adapts Runtime events to bounded, replayable SSE without changing AgentRuntime semantics.
+- Resolves mutation confirmations through single-use browser approval IDs that fail closed on timeout or session close.
+- Rejects cross-site requests and untrusted Host headers; the browser never supplies conversation history.
 
 ### CLI (`src/index.js`)
 

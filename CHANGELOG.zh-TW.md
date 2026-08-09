@@ -4,6 +4,19 @@
 
 所有重要變更都會記錄於此。
 
+## [0.2.0-dev.6] - 2026-08-10
+
+### Runtime Chat Gateway
+
+- 新增無 Runtime dependency、只綁定 `127.0.0.1:8787` 的 `node:http` Gateway。
+- 每個 Browser session 獨佔一個 `AgentRuntime`、message history、Context Inventory registry 與 project-local MemoryStore；只共用 LlamaClient／llama-server。
+- 新增有界且可 replay 的 SSE assistant、tool、context、approval 與 turn lifecycle events，不宣稱 token streaming。
+- 將 mutation confirmation 橋接為唯一 Browser approval，具 timeout-deny、single-use decision 與 closed-session denial。
+- 新增 responsive vanilla HTML／CSS／JS chat UI，提供即時 tool trace、明確 approval、安全文字渲染，Browser 不持有 transcript。
+- 拒絕 cross-site request 與不可信 Host；mutation endpoint 強制 JSON，並加入嚴格 Browser CSP。
+- 新增 Windows 一鍵啟停 Gateway script 與雙語 Gateway 文件。
+- llama.cpp 維持 inference-only；實驗中的 D0-D6 互動 orchestration 不在這個 milestone 內。
+
 ## [0.2.0-dev.5] - 2026-08-10
 
 ### Zero-mutation execution preparation

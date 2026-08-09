@@ -51,6 +51,10 @@ Do not commit or synchronize it without review.
 
 The example server binds to `127.0.0.1` and limits CORS to localhost. It does not configure an API key or TLS. Do not change the host to `0.0.0.0` or expose the port to a LAN without authentication, TLS, firewall rules, and an explicit threat model.
 
+The Runtime Chat Gateway also binds only to `127.0.0.1`. It validates the Host header, rejects cross-site browser requests, requires `application/json` for state-changing API calls, sends a restrictive Content Security Policy, and renders model text without HTML interpretation. These controls reduce drive-by browser and DNS-rebinding risk; they do not add authentication or protect a shared/multi-user machine.
+
+Each browser mutation approval is single-use, session-bound, and denied after five minutes or session closure. Approval still authorizes a model-requested action with the current user's OS permissions. Read the exact description and deny anything unexpected.
+
 ## Approval modes
 
 Default behavior asks before `write_file`, `edit_file`, and `run_command`.

@@ -24,3 +24,4 @@ Write-Host 'Next steps:' -ForegroundColor Cyan
 Write-Host '1. Edit config\server.json with your llama-server and GGUF paths.'
 Write-Host '2. Keep config\agent.json model equal to config\server.json alias.'
 Write-Host '3. Run 04_health_check.bat, then 01_start_server.bat.'
+Write-Host '4. Run 03_start_gateway.bat for the browser UI, or 02_start_agent.bat for the CLI.'

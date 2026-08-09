@@ -27,6 +27,7 @@ Prompt Context   = 可拋棄的工作視圖
 | I6 | File 與 artifact tools 不能離開 selected project root。 |
 | I7 | Context pressure 不能靜默超過 safety envelope。 |
 | I8 | Corrupted auxiliary memory 不能遮蔽無關的 valid memory。 |
+| I9 | Browser presentation state 不能取代或重新提交 Runtime-owned conversation state。 |
 
 ## Durability Model
 
@@ -46,18 +47,30 @@ Persistence 與 rendering 彼此獨立。小於等於 `artifactPersistenceChars`
 
 ```mermaid
 flowchart TD
+    WEB["Browser / web/"] --> GW["GatewayServer :8787"]
+    GW --> RS["RuntimeSession"]
+    RS --> AR
     CLI["CLI / index.js"] --> AR["AgentRuntime"]
     AR --> CM["ContextManager"]
     AR --> TR["ToolRunner"]
     AR --> MS["MemoryStore"]
     AR --> RM["RepoMapper"]
     AR --> LC["LlamaClient"]
-    LC --> API["OpenAI-compatible API"]
+    LC --> API["llama-server :8080 OpenAI-compatible API"]
     API --> MODEL["本機模型"]
     TR --> REPO["目標 Repository"]
     RM --> REPO
     MS --> DISK[".qwen-agent/"]
 ```
+
+### Runtime Chat Gateway（`src/gateway-server.js`、`src/runtime-session.js`）
+
+- 只在 loopback 提供無 dependency 的 Browser UI。
+- 每個 RuntimeSession 建立一個 AgentRuntime 與一份 conversation state。
+- 共用 LlamaClient／llama-server，同時隔離 session message、inventory、memory binding、events 與 approvals。
+- 將 Runtime events 轉為有界、可 replay 的 SSE，不改變 AgentRuntime semantics。
+- Mutation confirmation 使用 single-use Browser approval ID；逾時或 session close 時 fail closed。
+- 拒絕 cross-site request 與不可信 Host；Browser 絕不提交 conversation history。
 
 ### CLI（`src/index.js`）
 

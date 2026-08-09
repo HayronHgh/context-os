@@ -41,7 +41,8 @@ if (Test-Path -LiteralPath $PidFile) {
     $Existing = Get-Process -Id $ExistingPid -ErrorAction SilentlyContinue
     if ($Existing) {
         Write-Host "llama-server is already running (PID $ExistingPid)." -ForegroundColor Green
-        Write-Host "Web UI: http://$($Config.host):$($Config.port)"
+        Write-Host "Inference endpoint: http://$($Config.host):$($Config.port)"
+        Write-Host 'For evidence-aware Browser work, run 03_start_gateway.bat.'
         exit 0
     }
     Remove-Item -LiteralPath $PidFile -Force
@@ -105,8 +106,8 @@ while ((Get-Date) -lt $Deadline) {
     try {
         $Health = Invoke-RestMethod -Uri "http://$($Config.host):$($Config.port)/health" -TimeoutSec 3
         Write-Host "Ready: $($Health | ConvertTo-Json -Compress)" -ForegroundColor Green
-        Write-Host "Web UI: http://$($Config.host):$($Config.port)"
-        Write-Host 'Next: run 02_start_agent.bat'
+        Write-Host "Inference endpoint: http://$($Config.host):$($Config.port)"
+        Write-Host 'Next: run 03_start_gateway.bat (Browser) or 02_start_agent.bat (CLI).'
         exit 0
     } catch {
         Write-Host -NoNewline '.'

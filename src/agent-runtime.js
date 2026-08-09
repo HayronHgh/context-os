@@ -207,7 +207,19 @@ export class AgentRuntime {
           result,
           evidence: evidence.message.context_os
         });
-        this.onEvent({ type: "tool_end", name, ok: result?.ok !== false, denied: result?.denied === true });
+        this.onEvent({
+          type: "tool_end",
+          name,
+          ok: result?.ok !== false,
+          denied: result?.denied === true,
+          evidence: {
+            durable: evidence.message.context_os.durable,
+            artifactId: evidence.message.context_os.artifactId,
+            recoveryType: evidence.message.context_os.recoveryType,
+            originalChars: evidence.message.context_os.originalChars,
+            sha256: evidence.message.context_os.sha256
+          }
+        });
         if (["update_working_state", "save_episode", "build_repo_map"].includes(name)) this.refreshSystemPrompt();
       }
     }

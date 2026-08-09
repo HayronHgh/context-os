@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Evidence-aware local coding agent powered by ContextOS and llama.cpp">
+  <title>ContextOS Runtime</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="ContextOS home">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span>
+          <strong>ContextOS</strong>
+          <small>Runtime gateway</small>
+        </span>
+      </a>
+      <div class="runtime-status" id="runtimeStatus" data-state="checking">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span id="runtimeStatusText">Checking llama.cpp</span>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="chat-panel" aria-label="Agent conversation">
+        <div class="session-setup" id="sessionSetup">
+          <div class="eyebrow">LOCAL · EVIDENCE-AWARE · DURABLE</div>
+          <h1>Work with the repository,<br><em>not a guess about it.</em></h1>
+          <p>Every coding turn runs through ContextOS tools, repository evidence, approvals, memory, and context management before reaching your local Qwen model.</p>
+          <form id="sessionForm" class="project-form">
+            <label for="projectRoot">Project directory</label>
+            <div class="project-input-row">
+              <input id="projectRoot" name="projectRoot" type="text" autocomplete="off" spellcheck="false" placeholder="C:\path\to\your\repository" required>
+              <button type="submit" class="primary-button" id="connectButton">
+                <span>Start session</span>
+                <span aria-hidden="true">→</span>
+              </button>
+            </div>
+            <p class="form-hint">The runtime writes durable state to <code>.qwen-agent/</code> inside this directory.</p>
+            <p class="form-error" id="sessionError" role="alert"></p>
+          </form>
+        </div>
+
+        <div class="conversation" id="conversation" hidden>
+          <div class="conversation-head">
+            <div>
+              <span class="eyebrow">ACTIVE PROJECT</span>
+              <h2 id="projectName">Repository</h2>
+            </div>
+            <button class="quiet-button" id="endSessionButton" type="button">End session</button>
+          </div>
+          <div class="messages" id="messages" aria-live="polite">
+            <div class="empty-state" id="emptyState">
+              <div class="empty-glyph" aria-hidden="true">⌁</div>
+              <h3>Runtime connected</h3>
+              <p>Ask Qwen to inspect, explain, test, or change this repository. Reads are automatic; writes and commands wait for your approval.</p>
+              <div class="prompt-chips">
+                <button type="button" data-prompt="Inspect this repository's architecture and test entry points. Do not modify files.">Inspect architecture</button>
+                <button type="button" data-prompt="Check the current repository for likely correctness risks. Read evidence before answering and do not modify files.">Find risks</button>
+              </div>
+            </div>
+          </div>
+          <form class="composer" id="turnForm">
+            <label class="sr-only" for="turnInput">Message ContextOS</label>
+            <textarea id="turnInput" rows="1" maxlength="100000" placeholder="Ask ContextOS to inspect your project…" required></textarea>
+            <div class="composer-foot">
+              <span id="turnHint">Enter to send · Shift+Enter for newline</span>
+              <button class="send-button" id="sendButton" type="submit" aria-label="Send message">
+                <span>Send</span><span aria-hidden="true">↑</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <aside class="activity-panel" aria-label="Runtime activity">
+        <div class="activity-head">
+          <div>
+            <span class="eyebrow">LIVE TRACE</span>
+            <h2>Runtime activity</h2>
+          </div>
+          <span class="stream-state" id="streamState">Offline</span>
+        </div>
+
+        <div class="approval-card" id="approvalCard" hidden>
+          <div class="approval-icon" aria-hidden="true">!</div>
+          <div>
+            <span class="eyebrow">APPROVAL REQUIRED</span>
+            <p id="approvalDescription"></p>
+          </div>
+          <div class="approval-actions">
+            <button type="button" class="deny-button" id="denyButton">Deny</button>
+            <button type="button" class="approve-button" id="approveButton">Approve</button>
+          </div>
+        </div>
+
+        <div class="activity-feed" id="activityFeed" aria-live="polite">
+          <div class="activity-placeholder" id="activityPlaceholder">
+            <span class="trace-line"></span>
+            <p>Tool calls, evidence, context actions, and approvals will appear here.</p>
+          </div>
+        </div>
+
+        <footer class="runtime-boundary">
+          <div><span>Browser</span><i></i><span>ContextOS</span><i></i><span>llama.cpp</span></div>
+          <p>Conversation state stays in the Runtime—not in this browser.</p>
+        </footer>
+      </aside>
+    </main>
+  </div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

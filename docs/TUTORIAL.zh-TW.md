@@ -106,17 +106,19 @@ Durability 順序錯誤時 Runtime 會拒絕啟動，不允許 evidence 在持�
 
 Server 會在背景執行，log 寫入 `logs/`，managed PID 放在 `runtime/`。
 
-看到 ready health response 後執行：
+看到 ready health response 後啟動 Web Gateway：
 
 ```text
-02_start_agent.bat
+03_start_gateway.bat
 ```
 
-預設目標是內附 `workspace/`。指定其他 repository：
+Browser 會開啟 `http://127.0.0.1:8787`。預設目標是內附 `workspace/`；直接指定其他 repository：
 
 ```bat
-02_start_agent.bat "C:\Projects\my-app"
+03_start_gateway.bat "C:\Projects\my-app"
 ```
+
+Browser 只負責 presentation。建立 session 後，該 session 會擁有一份 Runtime-owned conversation、inventory、memory binding、event stream 與 approval channel。若要保留終端介面，仍可使用 `02_start_agent.bat`，並傳入同樣的 optional project path。
 
 ## 6. 第一個任務
 
@@ -130,7 +132,7 @@ Runtime 會在 selected repository 建立 `.qwen-agent/`。請將自動產生狀
 
 ## 7. Approval prompts
 
-寫入、exact edit 或 command 前，CLI 會詢問：
+寫入、exact edit 或 command 前，Browser 會顯示包含 Runtime exact description 的 approval card，請在其中選擇 Approve 或 Deny。終端 UI 仍會詢問：
 
 ```text
 Approve edit_file: src/example.js? [y/N]
@@ -141,6 +143,8 @@ Approve edit_file: src/example.js? [y/N]
 ```powershell
 node .\src\index.js --project C:\Projects\my-app --yes
 ```
+
+Browser Gateway 刻意不提供 auto-approve。Pending approval 是 single-use，並會在五分鐘後或 session close 時自動 Deny。
 
 ## 8. 單次模式
 

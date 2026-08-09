@@ -33,9 +33,9 @@ The goal is simple: a conversation may be compacted or reset without killing the
 
 ## Status
 
-**Experimental · v0.2.0-dev.5 D0-D6 Execution Finalization · Windows-first**
+**Experimental · v0.2.0-dev.6 Runtime Chat Gateway · Windows-first**
 
-The deterministic control remains frozen at [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2), and M4 experiment inputs are pinned to `aa59f4d`. The v0.2 development line now reaches model-free execution finalization: D5 atomically commits the exact validated context, then D6 generation-binds that commit, rebuilds the existing Context Inventory registry, and uses the same canonical ContextManager estimator and tool envelope to report signed actual reduction. Artifact creation and memory promotion remain absent.
+The deterministic control remains frozen at [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2), and M4 experiment inputs are pinned to `aa59f4d`. The D0-D6 execution contract remains frozen at the merged dev.5 baseline. Dev.6 adds a browser-usable, evidence-aware Runtime Gateway without changing those experiment inputs or pretending that the D0-D6 chain is already wired into interactive turns.
 
 Tested with:
 
@@ -49,6 +49,7 @@ The runtime is not tied to a specific model name, but the backend must return Op
 
 ## Features
 
+- Loopback-only browser Gateway with one AgentRuntime per session, SSE tool trace, and browser approval bridge
 - Persistent working state across conversations
 - Human-editable project memory
 - Structured episodic memory
@@ -95,13 +96,15 @@ The runtime is not tied to a specific model name, but the backend must return Op
 
 ```mermaid
 flowchart TD
-    U["User / CLI"] --> A["Agent Runtime"]
+    B["Browser :8787"] --> G["Runtime Chat Gateway"]
+    U["CLI"] --> A["Agent Runtime"]
+    G --> A
     A --> C["Context Manager"]
     A --> T["Tool Runner"]
     A --> M["Memory Store"]
     A --> R["Repository Mapper"]
     A --> L["OpenAI-compatible Client"]
-    L --> S["Local Model Server"]
+    L --> S["llama-server :8080"]
     S --> Q["Local Coding Model"]
     T --> P["Project Repository"]
     R --> P
@@ -150,16 +153,16 @@ Edit `config/server.json` and point `executable` and `model` to your local files
 ```text
 04_health_check.bat
 01_start_server.bat
-02_start_agent.bat
+03_start_gateway.bat
 ```
 
-To work on another repository:
+The Gateway opens `http://127.0.0.1:8787`. To work on another repository:
 
 ```bat
-02_start_agent.bat "C:\path\to\your\repository"
+03_start_gateway.bat "C:\path\to\your\repository"
 ```
 
-Stop the managed server with `03_stop_server.bat`.
+For the terminal UI, use `02_start_agent.bat` with the same optional project argument. Stop the Gateway with `06_stop_gateway.bat`, and stop llama-server with `03_stop_server.bat`.
 
 ## Agent commands
 
@@ -276,6 +279,7 @@ After v0.1.2, the 0.1.x line accepts only critical bugs, security fixes, regress
 
 | English | 繁體中文 |
 | --- | --- |
+| [Runtime Chat Gateway](docs/GATEWAY.md) | [Runtime Chat Gateway](docs/GATEWAY.zh-TW.md) |
 | [Architecture](docs/ARCHITECTURE.md) | [系統架構](docs/ARCHITECTURE.zh-TW.md) |
 | [Context compression](docs/CONTEXT_COMPRESSION.md) | [Context 壓縮](docs/CONTEXT_COMPRESSION.zh-TW.md) |
 | [Memory model](docs/MEMORY_MODEL.md) | [記憶模型](docs/MEMORY_MODEL.zh-TW.md) |

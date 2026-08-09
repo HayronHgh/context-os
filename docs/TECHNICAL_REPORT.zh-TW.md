@@ -2,7 +2,7 @@
 
 繁體中文 · [English](TECHNICAL_REPORT.md)
 
-版本：0.2.0-dev.5
+版本：0.2.0-dev.6
 
 狀態：Experimental Research MVP
 
@@ -129,6 +129,12 @@ v0.1.2 release candidate 已以 llama.cpp + Qwen3.6 完成端到端 recovery smo
 > 與依賴 conversation history 或 FIFO token eviction 相比，structured external state 能改善 context reset 後的 coding continuation。
 
 在規劃 benchmark 比較多種壓縮策略的 task completion、lost constraints、repeated investigation、recovery tokens 與 recovery time 前，這仍是待驗證假設。
+
+## Runtime Chat Gateway
+
+Dev.6 新增的是薄 Browser adapter，不是第二套 Agent implementation。`GatewayServer` 擁有 HTTP routing、static assets、Host／origin validation、JSON limits、SSE transport 與 session lookup；每個 `RuntimeSession` 恰好擁有一個既有 `AgentRuntime`、turn lock、有界 event history 與 pending approval promises。Browser request 只包含下一個 user turn；message history、Context Inventory、tool evidence、durable memory 與 context generation 絕不移入 presentation state。共用 `LlamaClient` 繼續以 non-streaming OpenAI-compatible completion 呼叫 port 8080 的 llama-server。
+
+Gateway 改善 capability honesty，因為 Browser 工作現在通過 Runtime tool／evidence contract，而不是 llama.cpp 裸 UI。它不會自動讓模型 prose 變可信；repository factual claim 仍需要實際 tool evidence。它也沒有將 D0-D6 接到 interactive turn loop，該 orchestration 仍是另一個需要獨立 review 的 integration problem。詳見 [Runtime Chat Gateway](GATEWAY.zh-TW.md)。
 
 ## 主要限制
 
