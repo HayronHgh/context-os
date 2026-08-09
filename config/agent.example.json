@@ -12,6 +12,16 @@
   "maxToolIterations": 20,
   "requestTimeoutSeconds": 3600,
   "temperature": 0.2,
+  "planner": {
+    "maxInputTokens": 12000,
+    "maxOutputTokens": 2048,
+    "maxVisibleUnits": 64,
+    "fullUnitChars": 600,
+    "maxUnitChars": 1000,
+    "maxTaskChars": 1000,
+    "temperature": 0.1,
+    "maxAttempts": 2
+  },
   "thresholds": {
     "garbageCollect": 0.55,
     "prune": 0.65,

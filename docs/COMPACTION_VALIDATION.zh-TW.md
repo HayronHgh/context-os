@@ -2,9 +2,9 @@
 
 繁體中文 · [English](COMPACTION_VALIDATION.md)
 
-版本：`0.2.0-dev.3`
+版本：`0.2.0-dev.4`
 
-狀態：M3 Runtime Validator 已實作；尚無 transformation 與 execution。
+狀態：M3 Runtime Validator 維持 frozen；M4 可呼叫它，但尚無 transformation 與 execution。
 
 ## 目的
 
@@ -233,7 +233,7 @@ M3 明確不提供：
 - artifact creation；
 - memory promotion 或 persistent write；
 - lifecycle 或 authority change；
-- Qwen Planner integration；
+- Validator 內部的 model call（M4 只在 strict proposal binding 後呼叫它）；
 - actual token-reduction measurement；
 - frozen deterministic `context-manager.js` policy 修改。
 

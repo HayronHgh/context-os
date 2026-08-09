@@ -2,9 +2,9 @@
 
 [Traditional Chinese](COMPACTION_PLAN_PROTOCOL.zh-TW.md) · English
 
-Version: `0.2.0-dev.3`
+Version: `0.2.0-dev.4`
 
-Status: M2 protocol and M3 Runtime authorization implemented; transformation and execution are absent.
+Status: M2 protocol, M3 Runtime authorization, and M4 bounded proposal generation implemented; transformation and execution are absent.
 
 ## Purpose
 
@@ -17,7 +17,7 @@ M2 CompactionPlan proposal
         ↓
 M3 Runtime Validator permission
         ↓
-M4 Qwen proposal generation (not implemented)
+M4 bounded Qwen proposal generation
         ↓
 M5 transformation / execution (not implemented)
 ```
@@ -174,6 +174,6 @@ At the end of M2:
 Inventory → FakePlanner → strict parser → binding check → expanded proposal → STOP
 ```
 
-There is no `compaction-validator.js`, Qwen Planner, plan retry loop, token-reduction permission, context mutation, artifact creation, or memory promotion in this milestone.
+M2 itself introduced no `compaction-validator.js`, Qwen Planner, plan retry loop, token-reduction permission, context mutation, artifact creation, or memory promotion. Later milestones remain separate layers over this frozen protocol.
 
-See [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.md) for the planned M3 authority matrix, dependency closure, fail-closed reasons, and M4/M5 research path.
+See [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.md) for the authority matrix, dependency closure, fail-closed reasons, and M4/M5 research path. The semantic adapter is documented separately in [Bounded Semantic Planning](BOUNDED_SEMANTIC_PLANNING.md).

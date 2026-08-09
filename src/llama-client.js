@@ -56,6 +56,7 @@ export class LlamaClient {
       body.tool_choice = "auto";
     }
     if (options.responseFormat) body.response_format = options.responseFormat;
+    if (options.chatTemplateKwargs) body.chat_template_kwargs = options.chatTemplateKwargs;
     const result = await this.request("/v1/chat/completions", {
       method: "POST",
       body: JSON.stringify(body)
