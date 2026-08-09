@@ -93,13 +93,19 @@ flowchart TD
 
 v0.2 開發線加入 observational semantic inventory。Context Unit 使用 session-scoped stable ID，明確區分 authority 與 recoverability，記錄 Runtime-owned protected reasons、typed dependencies、token cost 與 lifecycle。Inventory 只透過內部 `context_os` metadata 附加 identity，預設輸出 bounded summary，並可用 `/inventory` 檢查。
 
-M1 不授權任何 context action，也不修改 frozen pressure policy。它是未來 Planner 與 Validator 的結構化輸入邊界，詳見 [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.zh-TW.md)。
+M1 不授權任何 context action，也不修改 frozen pressure policy。它是 Planner 與 Validator 的結構化輸入邊界，詳見 [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.zh-TW.md)。
 
 ### CompactionPlan protocol 與 FakePlanner（`src/compaction-plan.js`、`src/planners/`）
 
 M2 為不可信 Planner output 定義 strict proposal language。Plan 綁定 canonical inventory ID 與 SHA-256 fingerprint，只能引用 stable Context Unit ID，並可提出 `KEEP`、`COMPRESS`、`EXTERNALIZE`、`EVICT` 或 audit-only `PROMOTE_PROPOSAL`。Unknown field、stale snapshot、duplicate/unknown unit、replacement content 與 Planner 對 Runtime-owned state 的 claim 都會 fail closed。
 
-Planner 未提到的 unit 一律 `KEEP`。`FakePlanner` 是不使用模型的 asynchronous test double。M2 在 parsing 與 snapshot binding 後停止：沒有 Runtime Validator、permission、execution、transformation、Qwen call 或 persistence side effect。詳見 [CompactionPlan protocol](COMPACTION_PLAN_PROTOCOL.zh-TW.md)。
+Planner 未提到的 unit 一律 `KEEP`。`FakePlanner` 是不使用模型的 asynchronous test double。M2 本身在 parsing 與 snapshot binding 後停止；其 proposal type 永遠不會授予 permission。詳見 [CompactionPlan protocol](COMPACTION_PLAN_PROTOCOL.zh-TW.md)。
+
+### Runtime Validator（`src/compaction-validator.js`）
+
+M3 將 bound proposal 轉成獨立 `ValidatedPlan`。Frozen Runtime-owned policy 依序評估 protection、authority、明確 recoverability predicates 與 transitive `depends_on` availability。Missing dependency target 與 cycle 會拒絕 whole plan；`PROMOTE_PROPOSAL` 只供 audit。
+
+Validator 只計算 gross potential-reduction upper bound，`actualReductionTokens` 維持 null。它是 pure、model-free authorization boundary，並在 context mutation、transformation、artifact creation、memory write、Qwen call 或 deterministic policy change 前停止。詳見 [Compaction authorization](COMPACTION_VALIDATION.zh-TW.md)。
 
 ### Context Manager（`src/context-manager.js`）
 

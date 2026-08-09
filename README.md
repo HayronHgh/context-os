@@ -33,9 +33,9 @@ The goal is simple: a conversation may be compacted or reset without killing the
 
 ## Status
 
-**Experimental · v0.2.0-dev.2 M2 CompactionPlan Protocol · Windows-first**
+**Experimental · v0.2.0-dev.3 M3 Runtime Authorization · Windows-first**
 
-The deterministic control remains frozen at [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2). The v0.2 development line now has benchmark locking, observational Context Inventory, canonical snapshot identity, and a strict proposal-only CompactionPlan protocol. It does not change the v0.1.2 pressure policy, authorize or execute plans, or connect a semantic Planner.
+The deterministic control remains frozen at [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2). The v0.2 development line now has benchmark locking, observational Context Inventory, canonical snapshot identity, a strict proposal-only CompactionPlan protocol, and a deterministic Runtime Validator that produces a separate `ValidatedPlan`. It does not change the v0.1.2 pressure policy, execute plans, mutate context, create artifacts, write memory, or connect a semantic Planner.
 
 Tested with:
 
@@ -64,6 +64,8 @@ The runtime is not tied to a specific model name, but the backend must return Op
 - Canonical inventory SHA-256 identity that rejects stale plan bindings
 - Strict CompactionPlan parser with default KEEP and proposal-only actions
 - Model-free FakePlanner and valid/invalid protocol fixtures
+- Runtime-owned protection, authority, recoverability, and transitive dependency authorization
+- Distinct, side-effect-free ValidatedPlan with potential upper-bound token accounting
 - Real-path-aware project-root containment for file and artifact tools
 - Approval prompts for writes, edits, and shell commands
 - Destructive-command guardrails
@@ -262,6 +264,7 @@ After v0.1.2, the 0.1.x line accepts only critical bugs, security fixes, regress
 | [Tutorial](docs/TUTORIAL.md) | [完整教程](docs/TUTORIAL.zh-TW.md) |
 | [Technical report](docs/TECHNICAL_REPORT.md) | [技術報告](docs/TECHNICAL_REPORT.zh-TW.md) |
 | [CompactionPlan protocol](docs/COMPACTION_PLAN_PROTOCOL.md) | [CompactionPlan protocol](docs/COMPACTION_PLAN_PROTOCOL.zh-TW.md) |
+| [Compaction authorization](docs/COMPACTION_VALIDATION.md) | [Compaction authorization](docs/COMPACTION_VALIDATION.zh-TW.md) |
 | [RFC-001: Adaptive Context Planning](docs/rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.md) | [RFC-001：自適應 Context Planning](docs/rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.zh-TW.md) |
 
 ## Development

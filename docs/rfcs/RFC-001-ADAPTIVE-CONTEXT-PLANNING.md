@@ -218,7 +218,7 @@ Every plan is bound to a canonical inventory ID and SHA-256 fingerprint. The fin
 
 `PROMOTE_PROPOSAL` is audit-only in v0.2.0 Phase A/B. It never writes project memory. Promotion is more dangerous than eviction because an incorrect speculation can poison future sessions while appearing authoritative. See the [CompactionPlan Protocol](../COMPACTION_PLAN_PROTOCOL.md) for the exact implementation contract.
 
-## M3: Runtime Validator — designed, not implemented
+## M3: Runtime Validator — implemented in 0.2.0-dev.3
 
 The Validator converts proposals into a distinct permission type. It never edits the Planner plan in place and never silently rewrites a rejected action to `KEEP`. Each result retains proposed action, permission, and machine-readable reason.
 
@@ -234,7 +234,7 @@ Runtime protection
 
 ### Protection
 
-In the first Validator, any protected unit permits only `KEEP`. `COMPRESS`, `EXTERNALIZE`, and `EVICT` are rejected. `PROMOTE_PROPOSAL` may be authorized only for audit while the active copy remains kept. Safety-certified compression of protected units is out of scope.
+In the first Validator, any protected unit permits only `KEEP`. `COMPRESS`, `EXTERNALIZE`, and `EVICT` are rejected. `PROMOTE_PROPOSAL` is `AUDIT_ONLY` while the active copy remains kept. Safety-certified compression of protected units is out of scope.
 
 ### Authority and recoverability
 
@@ -250,6 +250,8 @@ Protection is evaluated before this matrix:
 
 M3 Phase 1 will authorize `EXTERNALIZE` only for already-recoverable units. It will not introduce arbitrary Context Unit artifact creation or a new storage architecture.
 
+The recoverability predicates distinguish exact-enough durability from rebuildability. `artifact`, `repository`, and `memory` are recoverable and durable; `rebuildable` is recoverable but not durable; `none` is neither. Consequently, rebuildable evidence cannot satisfy the durable gate for `EVICT` or `COMPRESS`.
+
 ### Dependencies
 
 `depends_on` is the only hard retention relation in the first Validator. If active unit A depends on B, and A remains available while B would become unavailable, B's destructive action is rejected. This applies transitively through the full `depends_on` closure. Missing dependency targets and cycles fail closed.
@@ -258,11 +260,21 @@ M3 Phase 1 will authorize `EXTERNALIZE` only for already-recoverable units. It w
 
 ### Runtime token accounting
 
-Pressure supplies `requiredReductionTokens`; the Planner does not. The Validator derives potential reduction from Runtime-owned `tokenCost` and action rules. A legal plan that cannot meet the required reduction is `VALID_BUT_INSUFFICIENT`, not schema-invalid, and requires replan or deterministic fallback.
+Pressure supplies `requiredReductionTokens`; the Planner does not. Before execution, the Validator derives only `potentialReductionUpperBound` from Runtime-owned token cost and action rules. `actualReductionTokens` is always `null`.
+
+`KEEP` and `PROMOTE_PROPOSAL` contribute zero. Valid `COMPRESS` contributes `unit.tokens - targetTokens`; `targetTokens` must be lower than the current unit cost. `EXTERNALIZE` and `EVICT` contribute the unit cost as a gross upper bound and mark replacement cost unknown.
 
 ### Validation result
 
-The planned result contains authorized and rejected decisions, Runtime-calculated reducible/remaining tokens, and `fallbackRequired`. Initial reason codes include:
+The implemented result contains authorized, rejected, and audit-only decisions, Runtime-calculated upper bounds, and `fallbackRequired`. Status is one of:
+
+```text
+AUTHORIZED_DEFINITELY_INSUFFICIENT
+AUTHORIZED_POTENTIALLY_SUFFICIENT
+REJECTED
+```
+
+Meeting the requirement is only potentially sufficient until transformation and execution measure the real result. Initial reason codes include:
 
 ```text
 STALE_INVENTORY
@@ -276,7 +288,7 @@ MISSING_DEPENDENCY
 AUTHORITY_VIOLATION
 UNSUPPORTED_PROMOTION
 INVALID_ACTION
-INSUFFICIENT_REDUCTION
+INVALID_COMPRESSION_TARGET
 FAILURE_ENVELOPE_RISK
 ```
 
@@ -287,6 +299,8 @@ Planner proposal -> Runtime Validator -> ValidatedPlan -> STOP
 ```
 
 Invalid plans fail closed and request deterministic fallback. Context mutation, transformation, artifact creation, and promotion remain later integration work.
+
+The exact `ValidatedPlan`, policy tables, dependency availability rules, accounting semantics, and purity guarantees are documented in [Compaction Authorization](../COMPACTION_VALIDATION.md).
 
 ## M4: Qwen Semantic Planner
 
@@ -336,7 +350,7 @@ Metrics are reported separately. SCU is a convenience composite, not a replaceme
 | M4 | Qwen Planner | Bounded inventory, strict output, fallback |
 | M5 | A/B/C benchmark | Same control envelope; publish raw results |
 
-M0/M1 shipped in `0.2.0-dev.1`. M2 ships independently in `0.2.0-dev.2`. M3 will be a separate `0.2.0-dev.3` implementation so protocol correctness and authorization correctness remain independently reviewable. Neither dev.1 nor dev.2 alters deterministic context reduction.
+M0/M1 shipped in `0.2.0-dev.1`, M2 independently in `0.2.0-dev.2`, and M3 independently in `0.2.0-dev.3`, keeping protocol correctness and authorization correctness separately reviewable. None alters frozen deterministic context reduction or executes semantic plans.
 
 ## Consequences
 

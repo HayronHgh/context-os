@@ -2,9 +2,9 @@
 
 繁體中文 · [English](COMPACTION_PLAN_PROTOCOL.md)
 
-版本：`0.2.0-dev.2`
+版本：`0.2.0-dev.3`
 
-狀態：M2 protocol 已實作；M3 authorization 與所有 execution 尚未加入。
+狀態：M2 protocol 與 M3 Runtime authorization 已實作；尚無 transformation 與 execution。
 
 ## 目的
 
@@ -15,9 +15,11 @@ M1 Context Inventory
         ↓
 M2 CompactionPlan proposal
         ↓
-M3 Runtime Validator permission（未實作）
+M3 Runtime Validator permission
         ↓
-M4 execution / Qwen integration（未實作）
+M4 Qwen proposal generation（未實作）
+        ↓
+M5 transformation / execution（未實作）
 ```
 
 解析一份有效 plan 不會改動 active context、artifact、working state 或 project memory。
@@ -116,7 +118,7 @@ STALE_INVENTORY
 UNKNOWN_UNIT
 ```
 
-Protection、authority、recoverability、dependency closure 與 required token reduction 都屬於 M3 authorization，M2 刻意不做決定。
+Protection、authority、recoverability、dependency closure 與 required token reduction 都屬於 M3 authorization，仍不由本 parser 決定；其實作位於獨立的 [Runtime Validator](COMPACTION_VALIDATION.zh-TW.md)。
 
 ## Default KEEP
 
@@ -132,11 +134,11 @@ Plan 是 exception proposal，不擁有完整 context：
 
 `COMPRESS` 絕不攜帶 replacement text。未來 Transformer 才負責決定 authorized compression 的表示方式，讓 benchmark 可以區分「選錯資訊」與「summary 寫壞」。
 
-Planner 也不能提供 `expectedTokensSaved`。M3 將依 Runtime-owned `tokenCost` 與實際 transformation rules 計算 potential reduction。
+Planner 也不能提供 `expectedTokensSaved`。M3 只依 Runtime-owned token cost 與 action rules 計算 potential reduction upper bound；actual reduction 必須等後續 transformation 與 execution 才能得知。
 
 ## Promotion 只是一項 proposal
 
-`PROMOTE_PROPOSAL` 只含 unit ID、task-relative importance 與 reason，沒有 target、content、authority 或 persistence method。在 dev.2 它只是資料。未來 Validator 最多先授權 audit logging；v0.2 Phase A/B 不會寫入 project memory。
+`PROMOTE_PROPOSAL` 只含 unit ID、task-relative importance 與 reason，沒有 target、content、authority 或 persistence method。M3 Validator 將它標為 `AUDIT_ONLY`；v0.2 Phase A/B 不會寫入 project memory。
 
 ## FakePlanner
 

@@ -218,7 +218,7 @@ PROMOTE_PROPOSAL
 
 `PROMOTE_PROPOSAL` 在 v0.2.0 Phase A/B 只供 audit，不寫 project memory。Promotion 比 eviction 更危險：錯誤 speculation 可能污染未來 session，並偽裝成權威事實。精確實作契約請見 [CompactionPlan Protocol](../COMPACTION_PLAN_PROTOCOL.zh-TW.md)。
 
-## M3：Runtime Validator — 已設計，尚未實作
+## M3：Runtime Validator — 已於 0.2.0-dev.3 實作
 
 Validator 把 proposal 轉成不同 type 的 permission。它不修改原 Planner plan，也不會把 rejected action 靜默改寫成 `KEEP`。每個結果都保留 proposed action、permission 與 machine-readable reason。
 
@@ -234,7 +234,7 @@ Runtime protection
 
 ### Protection
 
-第一版 Validator 中，任何 protected unit 只允許 `KEEP`。`COMPRESS`、`EXTERNALIZE`、`EVICT` 都拒絕。`PROMOTE_PROPOSAL` 最多只授權 audit，active copy 仍然 KEEP。Safety-certified protected compression 不在本階段範圍。
+第一版 Validator 中，任何 protected unit 只允許 `KEEP`。`COMPRESS`、`EXTERNALIZE`、`EVICT` 都拒絕。`PROMOTE_PROPOSAL` 是 `AUDIT_ONLY`，active copy 仍然 KEEP。Safety-certified protected compression 不在本階段範圍。
 
 ### Authority 與 recoverability
 
@@ -250,6 +250,8 @@ Protection 先於以下 matrix：
 
 M3 Phase 1 只允許 already-recoverable unit `EXTERNALIZE`，不加入 arbitrary Context Unit artifact creation 或新 storage architecture。
 
+Recoverability predicates 會區分 exact-enough durability 與 rebuildability。`artifact`、`repository`、`memory` 同時 recoverable 且 durable；`rebuildable` 可恢復但不 durable；`none` 兩者皆否。因此 rebuildable evidence 不能通過 `EVICT` 或 `COMPRESS` 的 durable gate。
+
 ### Dependencies
 
 第一版 Validator 只把 `depends_on` 視為 hard retention relation。若 active A depends on B，A 仍可用而 B 將變成 unavailable，B 的 destructive action 必須拒絕。規則需套用至完整 transitive `depends_on` closure；missing dependency target 與 cycle 都 fail closed。
@@ -258,11 +260,21 @@ M3 Phase 1 只允許 already-recoverable unit `EXTERNALIZE`，不加入 arbitrar
 
 ### Runtime token accounting
 
-`requiredReductionTokens` 由 pressure 提供，不由 Planner 決定。Validator 依 Runtime-owned `tokenCost` 與 action rules 計算 potential reduction。合法但無法達到 required reduction 的 plan 是 `VALID_BUT_INSUFFICIENT`，不是 schema-invalid，後續需 replan 或 deterministic fallback。
+`requiredReductionTokens` 由 pressure 提供，不由 Planner 決定。Execution 前，Validator 只依 Runtime-owned token cost 與 action rules 推導 `potentialReductionUpperBound`；`actualReductionTokens` 永遠是 `null`。
+
+`KEEP` 與 `PROMOTE_PROPOSAL` 貢獻零；valid `COMPRESS` 貢獻 `unit.tokens - targetTokens`，且 target 必須小於目前 unit cost。`EXTERNALIZE` 與 `EVICT` 以 unit cost 作 gross upper bound，並標示 replacement cost unknown。
 
 ### Validation result
 
-規劃中的 result 包含 authorized/rejected decisions、Runtime-calculated reducible/remaining tokens 與 `fallbackRequired`。初始 reason codes：
+已實作 result 包含 authorized、rejected、audit-only decisions、Runtime-calculated upper bound 與 `fallbackRequired`。Status 固定為：
+
+```text
+AUTHORIZED_DEFINITELY_INSUFFICIENT
+AUTHORIZED_POTENTIALLY_SUFFICIENT
+REJECTED
+```
+
+達到 requirement 也只能稱 potentially sufficient，必須等 transformation 與 execution 量測 real result。初始 reason codes：
 
 ```text
 STALE_INVENTORY
@@ -276,7 +288,7 @@ MISSING_DEPENDENCY
 AUTHORITY_VIOLATION
 UNSUPPORTED_PROMOTION
 INVALID_ACTION
-INSUFFICIENT_REDUCTION
+INVALID_COMPRESSION_TARGET
 FAILURE_ENVELOPE_RISK
 ```
 
@@ -287,6 +299,8 @@ Planner proposal -> Runtime Validator -> ValidatedPlan -> STOP
 ```
 
 Invalid plan 必須 fail closed 並要求 deterministic fallback。Context mutation、transformation、artifact creation 與 promotion 都屬於後續 integration。
+
+精確 `ValidatedPlan`、policy tables、dependency availability rules、accounting semantics 與 purity guarantees 記錄於 [Compaction Authorization](../COMPACTION_VALIDATION.zh-TW.md)。
 
 ## M4：Qwen Semantic Planner
 
@@ -336,7 +350,7 @@ SCU  = CG * WIR
 | M4 | Qwen Planner | Bounded inventory、strict output、fallback |
 | M5 | A/B/C benchmark | 相同 control envelope；公開 raw results |
 
-M0/M1 於 `0.2.0-dev.1` 完成；M2 以獨立 `0.2.0-dev.2` 完成；M3 將使用另一個 `0.2.0-dev.3` 實作，使 protocol correctness 與 authorization correctness 可以分開 review。dev.1 與 dev.2 都不修改 deterministic context reduction。
+M0/M1 於 `0.2.0-dev.1` 完成，M2 獨立於 `0.2.0-dev.2` 完成，M3 則獨立於 `0.2.0-dev.3` 完成，使 protocol correctness 與 authorization correctness 可以分開 review。三者都不修改 frozen deterministic context reduction，也不執行 semantic plan。
 
 ## 影響
 

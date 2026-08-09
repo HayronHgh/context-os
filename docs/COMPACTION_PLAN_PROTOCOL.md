@@ -2,9 +2,9 @@
 
 [Traditional Chinese](COMPACTION_PLAN_PROTOCOL.zh-TW.md) · English
 
-Version: `0.2.0-dev.2`
+Version: `0.2.0-dev.3`
 
-Status: M2 protocol implemented; M3 authorization and all execution are absent.
+Status: M2 protocol and M3 Runtime authorization implemented; transformation and execution are absent.
 
 ## Purpose
 
@@ -15,9 +15,11 @@ M1 Context Inventory
         ↓
 M2 CompactionPlan proposal
         ↓
-M3 Runtime Validator permission (not implemented)
+M3 Runtime Validator permission
         ↓
-M4 execution / Qwen integration (not implemented)
+M4 Qwen proposal generation (not implemented)
+        ↓
+M5 transformation / execution (not implemented)
 ```
 
 Parsing a valid plan has no effect on active context, artifacts, working state, or project memory.
@@ -116,7 +118,7 @@ STALE_INVENTORY
 UNKNOWN_UNIT
 ```
 
-Protection, authority, recoverability, dependency closure, and required token reduction are M3 authorization concerns and are intentionally not decided here.
+Protection, authority, recoverability, dependency closure, and required token reduction are M3 authorization concerns and remain outside this parser. They are implemented by the separate [Runtime Validator](COMPACTION_VALIDATION.md).
 
 ## Default KEEP
 
@@ -132,11 +134,11 @@ An empty decision list is valid and keeps every unit.
 
 `COMPRESS` never carries replacement text. A future Transformer will decide how an authorized compression is represented. This separation allows benchmarks to distinguish a bad selection from a bad summary.
 
-The Planner also cannot provide `expectedTokensSaved`. M3 will compute potential reduction from Runtime-owned `tokenCost` and actual transformation rules.
+The Planner also cannot provide `expectedTokensSaved`. M3 computes only a potential reduction upper bound from Runtime-owned token costs and action rules; actual reduction remains unknown until later transformation and execution.
 
 ## Promotion is proposal-only
 
-`PROMOTE_PROPOSAL` contains only a unit ID, task-relative importance, and reason. It has no target, content, authority, or persistence method. In dev.2 it is data only. A later Validator may authorize it for audit logging, but v0.2 Phase A/B will not write it to project memory.
+`PROMOTE_PROPOSAL` contains only a unit ID, task-relative importance, and reason. It has no target, content, authority, or persistence method. The M3 Validator marks it `AUDIT_ONLY`; v0.2 Phase A/B does not write it to project memory.
 
 ## FakePlanner
 

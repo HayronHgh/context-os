@@ -4,6 +4,19 @@
 
 All notable changes to this project will be documented here.
 
+## [0.2.0-dev.3] - 2026-08-09
+
+### Runtime plan authorization
+
+- Add a deterministic, model-free Runtime Validator that converts an untrusted `CompactionPlan` into a distinct `ValidatedPlan` and stops before execution.
+- Data-drive protection, authority, and recoverability policy, including durable exact-enough recovery predicates.
+- Validate `depends_on` targets and cycles before authorization, then enforce direct and transitive post-action availability.
+- Keep `PROMOTE_PROPOSAL` audit-only with no memory, lifecycle, authority, context, or artifact mutation.
+- Report only Runtime-derived potential reduction upper bounds; keep `actualReductionTokens` null before execution.
+- Distinguish definitely insufficient authorization, potentially sufficient authorization, and rejected plans with deterministic fallback.
+- Reject invalid compression targets and preserve rejected proposals with machine-readable reason codes.
+- Add policy, graph, token-accounting, M2 regression, and no-side-effect tests plus bilingual validation documentation.
+
 ## [0.2.0-dev.2] - 2026-08-09
 
 ### Strict CompactionPlan protocol

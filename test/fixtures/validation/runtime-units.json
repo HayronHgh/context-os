@@ -1,0 +1,84 @@
+{
+  "sessionId": "validation",
+  "units": [
+    {
+      "id": "cu_validation_000001",
+      "kind": "USER_REQUIREMENT",
+      "content": "Keep the public API stable.",
+      "source": { "type": "message", "role": "user" },
+      "authority": "USER",
+      "createdAt": "2026-08-09T00:00:00.000Z",
+      "taskId": "validation-task",
+      "recoverability": "none",
+      "recoveryRef": null,
+      "protectedReasons": ["EXPLICIT_USER_CONSTRAINT"],
+      "dependencies": [],
+      "tokenCost": 100,
+      "lifecycle": "ACTIVE"
+    },
+    {
+      "id": "cu_validation_000002",
+      "kind": "TOOL_EVIDENCE",
+      "content": "The exact test output is persisted as an artifact.",
+      "source": { "type": "tool", "name": "run_command" },
+      "authority": "EVIDENCE",
+      "createdAt": "2026-08-09T00:01:00.000Z",
+      "taskId": "validation-task",
+      "recoverability": "artifact",
+      "recoveryRef": { "artifactId": "validation-artifact-1" },
+      "protectedReasons": [],
+      "dependencies": [],
+      "tokenCost": 600,
+      "lifecycle": "ACTIVE"
+    },
+    {
+      "id": "cu_validation_000003",
+      "kind": "TOOL_EVIDENCE",
+      "content": "This observation can be rebuilt but is not durably exact.",
+      "source": { "type": "tool", "name": "run_command" },
+      "authority": "EVIDENCE",
+      "createdAt": "2026-08-09T00:02:00.000Z",
+      "taskId": "validation-task",
+      "recoverability": "rebuildable",
+      "recoveryRef": null,
+      "protectedReasons": [],
+      "dependencies": [],
+      "tokenCost": 400,
+      "lifecycle": "ACTIVE"
+    },
+    {
+      "id": "cu_validation_000004",
+      "kind": "DECISION",
+      "content": "The derived decision depends on durable evidence.",
+      "source": { "type": "runtime" },
+      "authority": "DERIVED",
+      "createdAt": "2026-08-09T00:03:00.000Z",
+      "taskId": "validation-task",
+      "recoverability": "memory",
+      "recoveryRef": null,
+      "protectedReasons": [],
+      "dependencies": [
+        { "unitId": "cu_validation_000002", "relation": "depends_on" }
+      ],
+      "tokenCost": 300,
+      "lifecycle": "ACTIVE"
+    },
+    {
+      "id": "cu_validation_000005",
+      "kind": "HYPOTHESIS",
+      "content": "The active hypothesis depends transitively on the evidence.",
+      "source": { "type": "model" },
+      "authority": "SPECULATIVE",
+      "createdAt": "2026-08-09T00:04:00.000Z",
+      "taskId": "validation-task",
+      "recoverability": "none",
+      "recoveryRef": null,
+      "protectedReasons": [],
+      "dependencies": [
+        { "unitId": "cu_validation_000004", "relation": "depends_on" }
+      ],
+      "tokenCost": 200,
+      "lifecycle": "ACTIVE"
+    }
+  ]
+}
