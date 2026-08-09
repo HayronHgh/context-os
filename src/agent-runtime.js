@@ -7,6 +7,7 @@ import { formatStateTransfer, parseStateTransfer } from "./state-transfer.js";
 import { normalizeAgentConfig } from "./config.js";
 import { serializeContext } from "./context-messages.js";
 import { isDurableToolMessage, recoveryReference, ToolEvidenceManager } from "./tool-evidence.js";
+import { ContextInventory } from "./context-inventory.js";
 
 function assistantContent(message) {
   if (typeof message.content === "string" && message.content.trim()) return message.content;
@@ -39,6 +40,7 @@ export class AgentRuntime {
     this.context = new ContextManager(this.config);
     this.toolRunner = new ToolRunner({ projectRoot, memory, mapper: this.mapper, config: this.config, confirm, autoApprove });
     this.evidence = new ToolEvidenceManager({ memory, config: this.config });
+    this.inventory = new ContextInventory({ sessionId: memory.sessionId });
     this.durabilityMetrics = { artifactsCreated: 0, artifactCharsPersisted: 0 };
     this.messages = [];
     this.resetConversation();
@@ -64,11 +66,21 @@ export class AgentRuntime {
 
   resetConversation() {
     this.messages = [{ role: "system", content: this.systemPrompt() }];
+    this.syncInventory();
     this.memory.appendSession({ type: "conversation_reset" });
   }
 
   refreshSystemPrompt() {
     this.messages[0] = { role: "system", content: this.systemPrompt() };
+  }
+
+  syncInventory() {
+    return this.inventory.synchronize(this.messages, { taskId: this.memory.sessionId });
+  }
+
+  contextInventory(options = {}) {
+    this.syncInventory();
+    return this.inventory.snapshot(options);
   }
 
   async checkHealth() {
@@ -109,12 +121,15 @@ export class AgentRuntime {
   }
 
   async prepareContext(options = {}) {
+    this.syncInventory();
     const prepared = await this.context.prepare(this.messages, (older) => this.compactMessages(older), {
       ...options,
       tools: TOOL_DEFINITIONS,
       durabilityMetrics: this.durabilityMetrics
     });
     this.messages = prepared.messages;
+    const inventory = this.syncInventory();
+    prepared.report.inventory = inventory.stats;
     if (prepared.stateTransfer) this.memory.updateState({ stateTransfer: prepared.stateTransfer });
     if (prepared.report.actions.length) {
       this.onEvent({ type: "context", ...prepared.report });
@@ -132,6 +147,7 @@ export class AgentRuntime {
   async runTurn(userText) {
     this.refreshSystemPrompt();
     this.messages.push({ role: "user", content: userText });
+    this.syncInventory();
     this.memory.appendSession({ type: "message", role: "user", content: userText });
 
     for (let iteration = 0; iteration < this.config.maxToolIterations; iteration += 1) {
@@ -148,6 +164,7 @@ export class AgentRuntime {
       if (message.tool_calls?.length) assistant.tool_calls = message.tool_calls;
       if (message.reasoning_content) assistant.reasoning_content = message.reasoning_content;
       this.messages.push(assistant);
+      this.syncInventory();
       this.memory.appendSession({ type: "message", role: "assistant", content: assistant.content, toolCalls: assistant.tool_calls, usage });
 
       const visible = assistantContent(message);
@@ -169,6 +186,7 @@ export class AgentRuntime {
         this.durabilityMetrics.artifactsCreated += evidence.metrics.artifactsCreated;
         this.durabilityMetrics.artifactCharsPersisted += evidence.metrics.artifactCharsPersisted;
         this.messages.push(evidence.message);
+        this.syncInventory();
         this.memory.appendSession({
           type: "tool_result",
           name,

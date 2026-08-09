@@ -4,6 +4,17 @@
 
 所有重要變更都會記錄於此。
 
+## [0.2.0-dev.1] - 2026-08-09
+
+### Adaptive context planning 基礎
+
+- 將 resolved v0.1.2 merge commit 凍結為 annotated benchmark control，記錄精確 llama.cpp、GGUF、prompt、config、chat-template 與 host fingerprints。
+- 新增英文與繁體中文 RFC-001。
+- 新增經驗證的 Context Unit：stable session/sequence identity、authority、recoverability、protected reasons、typed dependencies、token cost 與 lifecycle。
+- 新增 bounded observational Context Inventory 與 `/inventory`，不改動 deterministic context policy。
+- 所有 Context Unit metadata 都保留在 model serialization boundary 後方。
+- 新增第一份 oracle-backed benchmark fixture 與 M0/M1 tests。
+
 ## [0.1.2] - 2026-08-09
 
 ### Durability 與 core invariant freeze

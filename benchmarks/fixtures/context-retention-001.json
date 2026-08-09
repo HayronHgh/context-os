@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "id": "context-retention-001",
+  "title": "Public API constraint and diagnostic evidence retention",
+  "objective": "Diagnose a duplicate refresh result without changing the public API.",
+  "taskPhase": "investigation",
+  "initialMessages": [
+    {
+      "role": "user",
+      "content": "Diagnose why concurrent refresh calls can report duplicate success. Do not change the public API."
+    },
+    {
+      "role": "assistant",
+      "content": "I will inspect the refresh implementation and reproduce the race before proposing a change."
+    },
+    {
+      "role": "tool",
+      "name": "run_command",
+      "tool_call_id": "fixture-call-1",
+      "content": "FAIL: concurrent refresh reproduced duplicate success in 7/10 runs"
+    }
+  ],
+  "protectedFacts": [
+    {
+      "id": "constraint-public-api",
+      "fact": "The public API must remain compatible.",
+      "authority": "USER",
+      "weight": 5,
+      "requiredUntil": "task_complete"
+    },
+    {
+      "id": "evidence-duplicate-success",
+      "fact": "Concurrent refresh reproduced duplicate success in 7 of 10 runs.",
+      "authority": "EVIDENCE",
+      "weight": 4,
+      "requiredUntil": "root_cause_confirmed"
+    },
+    {
+      "id": "decision-reproduce-first",
+      "fact": "The failure must be reproduced before a fix is proposed.",
+      "authority": "DERIVED",
+      "weight": 2,
+      "requiredUntil": "root_cause_confirmed"
+    }
+  ],
+  "checkpoints": [
+    {
+      "id": "after-pressure-intervention",
+      "requiredFacts": [
+        "constraint-public-api",
+        "evidence-duplicate-success",
+        "decision-reproduce-first"
+      ]
+    },
+    {
+      "id": "after-root-cause-confirmed",
+      "requiredFacts": [
+        "constraint-public-api"
+      ]
+    }
+  ],
+  "probes": [
+    {
+      "id": "probe-public-api",
+      "question": "May the public API be changed?",
+      "expected": "No. It must remain compatible."
+    },
+    {
+      "id": "probe-reproduction",
+      "question": "What exact reproduction evidence is known?",
+      "expected": "Concurrent refresh produced duplicate success in 7 of 10 runs."
+    }
+  ]
+}

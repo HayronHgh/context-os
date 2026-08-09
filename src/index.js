@@ -63,7 +63,7 @@ async function main() {
   };
   const runtime = new AgentRuntime({ projectRoot, config, client, memory, confirm, autoApprove: args.yes, onEvent: eventPrinter });
 
-  console.log("ContextOS 0.1.2");
+  console.log("ContextOS 0.2.0-dev.1");
   console.log(`Project: ${projectRoot}`);
   try {
     const status = await runtime.checkHealth();
@@ -92,7 +92,7 @@ async function main() {
     if (!input) continue;
     if (input === "/exit" || input === "/quit") break;
     if (input === "/help") {
-      console.log("/health  /map  /state  /memory  /compact  /new  /project  /exit\n");
+      console.log("/health  /map  /state  /memory  /inventory  /compact  /new  /project  /exit\n");
       continue;
     }
     if (input === "/health") {
@@ -106,6 +106,7 @@ async function main() {
     }
     if (input === "/state") { console.log(JSON.stringify(memory.getState(), null, 2)); continue; }
     if (input === "/memory") { console.log(memory.readProjectMemory()); continue; }
+    if (input === "/inventory") { console.log(JSON.stringify(runtime.contextInventory(), null, 2)); continue; }
     if (input === "/project") { console.log(projectRoot); continue; }
     if (input === "/new") { runtime.resetConversation(); console.log("Conversation reset; persistent memory retained."); continue; }
     if (input === "/compact") {

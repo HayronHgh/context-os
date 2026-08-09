@@ -4,6 +4,17 @@
 
 All notable changes to this project will be documented here.
 
+## [0.2.0-dev.1] - 2026-08-09
+
+### Adaptive context planning foundation
+
+- Freeze the resolved v0.1.2 merge commit as an annotated benchmark control with exact llama.cpp, GGUF, prompt, config, chat-template, and host fingerprints.
+- Add RFC-001 in English and Traditional Chinese.
+- Add validated Context Units with stable session/sequence identity, authority, recoverability, protected reasons, typed dependencies, token cost, and lifecycle.
+- Add a bounded observational Context Inventory and `/inventory` command without changing deterministic context policy.
+- Keep all Context Unit metadata behind the model serialization boundary.
+- Add the first oracle-backed benchmark fixture and M0/M1 tests.
+
 ## [0.1.2] - 2026-08-09
 
 ### Durability and core invariant freeze

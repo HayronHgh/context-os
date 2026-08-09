@@ -89,6 +89,12 @@ flowchart TD
 - Removes `context_os` and future runtime-only policy metadata.
 - Preserves only protocol fields required by the local model server.
 
+### Context Unit and Inventory (`src/context-unit.js`, `src/context-inventory.js`)
+
+The v0.2 development line adds an observational semantic inventory. Context Units have stable session-scoped IDs, explicit authority and recoverability, Runtime-owned protected reasons, typed dependencies, token cost, and lifecycle. The inventory attaches identity only through internal `context_os` metadata, emits bounded summaries by default, and is inspectable with `/inventory`.
+
+M1 does not authorize context actions and does not alter the frozen pressure policy. It is the structured input boundary for the future Planner and Validator described in [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.md).
+
 ### Context manager (`src/context-manager.js`)
 
 - Estimates utilization from messages, tool schemas, tool choice, and fixed safety overhead.
