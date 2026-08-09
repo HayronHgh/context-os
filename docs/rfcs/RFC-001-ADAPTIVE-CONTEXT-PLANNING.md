@@ -198,9 +198,9 @@ The Planner will receive a bounded inventory rather than an unstructured 50K-tok
 
 M1 inventory output excludes full content by default, includes bounded summaries, and remains behind the OpenAI-compatible serialization boundary. `/inventory` exists for inspection. No Planner consumes it yet.
 
-## M2: Planner protocol
+## M2: Planner protocol — implemented in `0.2.0-dev.2`
 
-The planned `CompactionPlan` action vocabulary is:
+The `CompactionPlan` action vocabulary is:
 
 ```text
 KEEP
@@ -210,23 +210,83 @@ EVICT
 PROMOTE_PROPOSAL
 ```
 
-Every decision identifies a stable unit ID, action, task-relative importance, and concise reason. A fake Planner and fixtures will be used before Qwen is connected.
+Every decision identifies a stable unit ID, action, task-relative importance, and concise reason. `COMPRESS` may request a positive `targetTokens`, but cannot supply replacement content. Planner-provided authority, protection, recoverability, lifecycle, promotion content, and expected savings are outside the schema.
 
-`PROMOTE_PROPOSAL` is audit-only in v0.2.0 Phase A/B. It is logged and never writes project memory. Promotion is more dangerous than eviction because an incorrect speculation can poison future sessions while appearing authoritative.
+Every plan is bound to a canonical inventory ID and SHA-256 fingerprint. The fingerprint covers position, stable identity, content digest, kind, source, task, authority, lifecycle, protection, recoverability, dependencies, and token cost. A mismatch or a unit added after planning rejects the whole plan as stale. Unmentioned units default to `KEEP`.
 
-## M3: Runtime Validator
+`FakePlanner` and fixed valid/invalid fixtures exercise the protocol without Qwen. M2 stops after strict parsing, snapshot binding, and default expansion. It cannot authorize, execute, transform, externalize, evict, or persist anything.
 
-The Validator converts proposals into permissions. At minimum it rejects:
+`PROMOTE_PROPOSAL` is audit-only in v0.2.0 Phase A/B. It never writes project memory. Promotion is more dangerous than eviction because an incorrect speculation can poison future sessions while appearing authoritative. See the [CompactionPlan Protocol](../COMPACTION_PLAN_PROTOCOL.md) for the exact implementation contract.
 
-- removal or destructive compression of Runtime-protected units;
-- eviction of non-recoverable required evidence;
-- removal that leaves an active dependency unresolved;
-- authority upgrades proposed by the model;
-- any persistent-memory write through `PROMOTE_PROPOSAL`;
-- unknown units, duplicate decisions, invalid actions, or impossible token claims;
-- plans that weaken I1-I8 or leave the context above the failure envelope.
+## M3: Runtime Validator — designed, not implemented
 
-Invalid plans fail closed and trigger deterministic fallback.
+The Validator converts proposals into a distinct permission type. It never edits the Planner plan in place and never silently rewrites a rejected action to `KEEP`. Each result retains proposed action, permission, and machine-readable reason.
+
+Authorization precedence is fixed:
+
+```text
+Runtime protection
+  > authority
+  > recoverability
+  > dependency closure
+  > Planner importance/recommendation
+```
+
+### Protection
+
+In the first Validator, any protected unit permits only `KEEP`. `COMPRESS`, `EXTERNALIZE`, and `EVICT` are rejected. `PROMOTE_PROPOSAL` may be authorized only for audit while the active copy remains kept. Safety-certified compression of protected units is out of scope.
+
+### Authority and recoverability
+
+Protection is evaluated before this matrix:
+
+| Authority | KEEP | COMPRESS | EXTERNALIZE | EVICT |
+| --- | ---: | ---: | ---: | ---: |
+| `USER` | allow | only when unprotected | only when unprotected and recoverable | only when unprotected and recoverable |
+| `SOURCE_OF_TRUTH` | allow | only when unprotected | only when repository-recoverable | only when recoverable |
+| `EVIDENCE` | allow | only when durable | only when already recoverable | only when durable |
+| `DERIVED` | allow | allow when safe | allow when recoverable | allow when recoverable and dependencies permit |
+| `SPECULATIVE` | allow | allow when safe | allow when recoverable | allow when recoverable and dependencies permit |
+
+M3 Phase 1 will authorize `EXTERNALIZE` only for already-recoverable units. It will not introduce arbitrary Context Unit artifact creation or a new storage architecture.
+
+### Dependencies
+
+`depends_on` is the only hard retention relation in the first Validator. If active unit A depends on B, and A remains available while B would become unavailable, B's destructive action is rejected. This applies transitively through the full `depends_on` closure. Missing dependency targets and cycles fail closed.
+
+`supports` is soft when its target remains recoverable. `contradicts` does not automatically lock retention. `supersedes` makes the superseded unit eligible for later reduction when the replacement remains active and valid.
+
+### Runtime token accounting
+
+Pressure supplies `requiredReductionTokens`; the Planner does not. The Validator derives potential reduction from Runtime-owned `tokenCost` and action rules. A legal plan that cannot meet the required reduction is `VALID_BUT_INSUFFICIENT`, not schema-invalid, and requires replan or deterministic fallback.
+
+### Validation result
+
+The planned result contains authorized and rejected decisions, Runtime-calculated reducible/remaining tokens, and `fallbackRequired`. Initial reason codes include:
+
+```text
+STALE_INVENTORY
+UNKNOWN_UNIT
+DUPLICATE_DECISION
+PROTECTED_UNIT
+NON_RECOVERABLE
+ACTIVE_DEPENDENCY
+DEPENDENCY_CYCLE
+MISSING_DEPENDENCY
+AUTHORITY_VIOLATION
+UNSUPPORTED_PROMOTION
+INVALID_ACTION
+INSUFFICIENT_REDUCTION
+FAILURE_ENVELOPE_RISK
+```
+
+M3 also stops before execution:
+
+```text
+Planner proposal -> Runtime Validator -> ValidatedPlan -> STOP
+```
+
+Invalid plans fail closed and request deterministic fallback. Context mutation, transformation, artifact creation, and promotion remain later integration work.
 
 ## M4: Qwen Semantic Planner
 
@@ -276,7 +336,7 @@ Metrics are reported separately. SCU is a convenience composite, not a replaceme
 | M4 | Qwen Planner | Bounded inventory, strict output, fallback |
 | M5 | A/B/C benchmark | Same control envelope; publish raw results |
 
-M0 and the observational portion of M1 are the scope of the first v0.2 development PR. It deliberately does not alter deterministic context reduction.
+M0/M1 shipped in `0.2.0-dev.1`. M2 ships independently in `0.2.0-dev.2`. M3 will be a separate `0.2.0-dev.3` implementation so protocol correctness and authorization correctness remain independently reviewable. Neither dev.1 nor dev.2 alters deterministic context reduction.
 
 ## Consequences
 

@@ -2,7 +2,7 @@
 
 [繁體中文](TECHNICAL_REPORT.zh-TW.md) · English
 
-Version: 0.2.0-dev.1
+Version: 0.2.0-dev.2
 
 Status: Experimental research MVP
 
@@ -35,6 +35,9 @@ It does not yet implement AST/LSP graphs, semantic retrieval, a transactional me
 | `src/context-messages.js` | Internal-to-model serialization boundary |
 | `src/context-unit.js` | Context Unit schema, enums, stable ID factory, validation |
 | `src/context-inventory.js` | Message inventory, runtime protection, lifecycle, bounded Planner view |
+| `src/compaction-plan.js` | Strict proposal schema/parser, snapshot binding, implicit KEEP expansion |
+| `src/planners/planner.js` | Model-independent asynchronous Planner contract |
+| `src/planners/fake-planner.js` | Fixture-backed Planner test double with cloned I/O and call capture |
 | `src/context-manager.js` | Budget, pruning, structured compaction |
 | `src/llama-client.js` | OpenAI-compatible HTTP client |
 | `src/memory-store.js` | JSON, JSONL, Markdown, episodes, artifacts |
@@ -131,4 +134,4 @@ v0.1.2 freezes the deterministic Phase 1/2 baseline. Future 0.1.x changes are li
 
 v0.2.0 is reserved for **Adaptive Semantic Context Planning**: token pressure decides when intervention may be needed, task semantics proposes what matters, and frozen runtime invariants decide which actions are legal. The first benchmark should compare threshold, pure semantic, and hybrid planners without changing the v0.1.2 control group.
 
-The current `0.2.0-dev.1` scope completes M0 and the observational portion of M1. Context Unit metadata remains internal, `/inventory` exposes a bounded view for inspection, and no Planner is connected. The complete protocol, threat boundaries, metrics, and M0-M5 gates are specified in [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.md).
+`0.2.0-dev.1` completed M0 and the observational portion of M1. `0.2.0-dev.2` completes M2: inventory snapshots have canonical identities, CompactionPlan has a strict proposal-only schema, unmentioned units default to KEEP, and FakePlanner exercises the protocol without a model. No plan is authorized or executed, and Qwen remains disconnected. The implementation contract is documented in [CompactionPlan Protocol](COMPACTION_PLAN_PROTOCOL.md); the complete threat boundaries, metrics, and M0-M5 gates are specified in [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.md).

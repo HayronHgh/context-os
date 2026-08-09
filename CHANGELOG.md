@@ -4,6 +4,18 @@
 
 All notable changes to this project will be documented here.
 
+## [0.2.0-dev.2] - 2026-08-09
+
+### Strict CompactionPlan protocol
+
+- Bind every plan to a canonical SHA-256 inventory identity covering order, content digest, authority, protection, recoverability, dependencies, lifecycle, source, task, and token cost.
+- Add strict `CompactionPlan` parsing with exact fields, stable unit references, five proposal actions, four importance values, and bounded reasons.
+- Reject stale inventories, unknown units, duplicate decisions, unknown fields/actions, invalid IDs, Planner-owned Runtime metadata, replacement content, and authoritative savings claims.
+- Define unmentioned units as implicit `KEEP`.
+- Add a model-free asynchronous `FakePlanner`; no Qwen integration or plan execution exists.
+- Keep `PROMOTE_PROPOSAL` data-only with no persistent-memory path.
+- Add fixed inventory and valid/invalid plan fixtures plus bilingual protocol documentation.
+
 ## [0.2.0-dev.1] - 2026-08-09
 
 ### Adaptive context planning foundation

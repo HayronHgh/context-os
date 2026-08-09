@@ -4,6 +4,18 @@
 
 所有重要變更都會記錄於此。
 
+## [0.2.0-dev.2] - 2026-08-09
+
+### Strict CompactionPlan protocol
+
+- 每份 plan 綁定 canonical SHA-256 inventory identity，涵蓋 order、content digest、authority、protection、recoverability、dependencies、lifecycle、source、task 與 token cost。
+- 新增 strict `CompactionPlan` parser：exact fields、stable unit references、五種 proposal actions、四種 importance 與 bounded reasons。
+- 拒絕 stale inventory、unknown unit、duplicate decision、unknown field/action、invalid ID、Planner-owned Runtime metadata、replacement content 與 authoritative savings claim。
+- 定義 Planner 未提到的 unit 為 implicit `KEEP`。
+- 新增不使用模型的 asynchronous `FakePlanner`；沒有 Qwen integration 或 plan execution。
+- `PROMOTE_PROPOSAL` 保持 data-only，沒有 persistent-memory path。
+- 新增固定 inventory、valid/invalid plan fixtures 與雙語 protocol 文件。
+
 ## [0.2.0-dev.1] - 2026-08-09
 
 ### Adaptive context planning 基礎

@@ -95,6 +95,12 @@ v0.2 開發線加入 observational semantic inventory。Context Unit 使用 sess
 
 M1 不授權任何 context action，也不修改 frozen pressure policy。它是未來 Planner 與 Validator 的結構化輸入邊界，詳見 [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.zh-TW.md)。
 
+### CompactionPlan protocol 與 FakePlanner（`src/compaction-plan.js`、`src/planners/`）
+
+M2 為不可信 Planner output 定義 strict proposal language。Plan 綁定 canonical inventory ID 與 SHA-256 fingerprint，只能引用 stable Context Unit ID，並可提出 `KEEP`、`COMPRESS`、`EXTERNALIZE`、`EVICT` 或 audit-only `PROMOTE_PROPOSAL`。Unknown field、stale snapshot、duplicate/unknown unit、replacement content 與 Planner 對 Runtime-owned state 的 claim 都會 fail closed。
+
+Planner 未提到的 unit 一律 `KEEP`。`FakePlanner` 是不使用模型的 asynchronous test double。M2 在 parsing 與 snapshot binding 後停止：沒有 Runtime Validator、permission、execution、transformation、Qwen call 或 persistence side effect。詳見 [CompactionPlan protocol](COMPACTION_PLAN_PROTOCOL.zh-TW.md)。
+
 ### Context Manager（`src/context-manager.js`）
 
 - 由 messages、tool schemas、tool choice 與固定安全餘量估算 prompt 使用率。

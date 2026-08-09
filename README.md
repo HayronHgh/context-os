@@ -33,9 +33,9 @@ The goal is simple: a conversation may be compacted or reset without killing the
 
 ## Status
 
-**Experimental · v0.2.0-dev.1 M0/M1 · Windows-first**
+**Experimental · v0.2.0-dev.2 M2 CompactionPlan Protocol · Windows-first**
 
-The deterministic control remains frozen at [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2). The v0.2 development line currently adds benchmark locking and an observational Context Inventory only; it does not change the v0.1.2 pressure policy or connect a semantic Planner.
+The deterministic control remains frozen at [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2). The v0.2 development line now has benchmark locking, observational Context Inventory, canonical snapshot identity, and a strict proposal-only CompactionPlan protocol. It does not change the v0.1.2 pressure policy, authorize or execute plans, or connect a semantic Planner.
 
 Tested with:
 
@@ -61,6 +61,9 @@ The runtime is not tied to a specific model name, but the backend must return Op
 - OpenAI-compatible tool-calling loop
 - Stable-ID Context Units with explicit authority, recoverability, protection, dependencies, and lifecycle
 - Bounded observational Context Inventory kept behind the model serialization boundary
+- Canonical inventory SHA-256 identity that rejects stale plan bindings
+- Strict CompactionPlan parser with default KEEP and proposal-only actions
+- Model-free FakePlanner and valid/invalid protocol fixtures
 - Real-path-aware project-root containment for file and artifact tools
 - Approval prompts for writes, edits, and shell commands
 - Destructive-command guardrails
@@ -258,6 +261,7 @@ After v0.1.2, the 0.1.x line accepts only critical bugs, security fixes, regress
 | [Security](docs/SECURITY.md) | [安全說明](docs/SECURITY.zh-TW.md) |
 | [Tutorial](docs/TUTORIAL.md) | [完整教程](docs/TUTORIAL.zh-TW.md) |
 | [Technical report](docs/TECHNICAL_REPORT.md) | [技術報告](docs/TECHNICAL_REPORT.zh-TW.md) |
+| [CompactionPlan protocol](docs/COMPACTION_PLAN_PROTOCOL.md) | [CompactionPlan protocol](docs/COMPACTION_PLAN_PROTOCOL.zh-TW.md) |
 | [RFC-001: Adaptive Context Planning](docs/rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.md) | [RFC-001：自適應 Context Planning](docs/rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.zh-TW.md) |
 
 ## Development

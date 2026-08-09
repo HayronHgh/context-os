@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "planId": "plan_invalid_stale",
+  "inventory": {
+    "id": "inv_fixture_bbbbbbbbbbbbbbbb",
+    "fingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "decisions": []
+}

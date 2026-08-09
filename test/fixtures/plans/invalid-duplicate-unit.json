@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "planId": "plan_invalid_duplicate",
+  "inventory": {
+    "id": "inv_fixture_1561c913550da168",
+    "fingerprint": "sha256:1561c913550da1682c75a02bc8a52bb7ce1ae2a8a7e6d799840e5f50a45a8159"
+  },
+  "decisions": [
+    {
+      "unitId": "cu_fixture_000002",
+      "action": "KEEP",
+      "importance": "high",
+      "reason": "First decision"
+    },
+    {
+      "unitId": "cu_fixture_000002",
+      "action": "EVICT",
+      "importance": "low",
+      "reason": "Conflicting second decision"
+    }
+  ]
+}

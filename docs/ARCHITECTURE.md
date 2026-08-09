@@ -95,6 +95,12 @@ The v0.2 development line adds an observational semantic inventory. Context Unit
 
 M1 does not authorize context actions and does not alter the frozen pressure policy. It is the structured input boundary for the future Planner and Validator described in [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.md).
 
+### CompactionPlan protocol and FakePlanner (`src/compaction-plan.js`, `src/planners/`)
+
+M2 gives untrusted Planner output a strict proposal language. Plans bind to a canonical inventory ID and SHA-256 fingerprint, reference only stable Context Unit IDs, and may propose `KEEP`, `COMPRESS`, `EXTERNALIZE`, `EVICT`, or audit-only `PROMOTE_PROPOSAL`. Unknown fields, stale snapshots, duplicate/unknown units, replacement content, and Planner claims over Runtime-owned state fail closed.
+
+Unmentioned units mean `KEEP`. `FakePlanner` provides a model-free asynchronous test double. M2 stops after parsing and snapshot binding: there is no Runtime Validator, permission, execution, transformation, Qwen call, or persistence side effect. See the [CompactionPlan protocol](COMPACTION_PLAN_PROTOCOL.md).
+
 ### Context manager (`src/context-manager.js`)
 
 - Estimates utilization from messages, tool schemas, tool choice, and fixed safety overhead.
