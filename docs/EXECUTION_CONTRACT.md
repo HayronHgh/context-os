@@ -4,7 +4,7 @@
 
 Version: `0.2.0-dev.5`
 
-Status: D0 execution protocol through D5 Atomic Execution implemented. D6 rebuild/accounting remains absent.
+Status: D0 execution protocol through D6 Post-commit Finalization implemented.
 
 ## Purpose
 
@@ -24,9 +24,15 @@ Post-transform Validation
 Atomic Execution
       ↓
 ExecutionResult
+      ↓
+Post-commit Finalization
+      ↓
+Inventory Rebuild + Canonical Re-estimation
+      ↓
+ExecutionReport
 ```
 
-The current implementation stops after D5 returns an immutable committed or aborted `ExecutionResult`. D5 is the only layer in this chain allowed to mutate the active message context; D6 inventory rebuild and actual re-tokenization remain separate.
+The current implementation stops after D6 returns an immutable finalized or finalization-failed `ExecutionReport`. D5 remains the only layer allowed to mutate the active message context; D6 performs derived observation, inventory synchronization, and canonical accounting without rollback authority.
 
 ## Core invariants
 
@@ -315,7 +321,9 @@ D5 receives both this validation and the original `TransformationCandidate`, the
     messages,
     contextGeneration
   },
-  recoveryVerifier
+  recoveryVerifier,
+  contextManager,
+  tools
 }
 ```
 
@@ -375,11 +383,14 @@ interface ExecutionResult {
     unitId: string;
     operation: "NOOP" | "REMOVE" | "REPLACE" | "AUDIT_ONLY";
   }>;
+  potentialReductionUpperBound: number;
   committed: true;
   runtime: {
     committedAt: string;
     contextGenerationBefore: number;
     contextGenerationAfter: number;
+    tokenAccountingBefore: TokenBreakdown;
+    accountingToolsDigest: `sha256:${string}`;
   };
 }
 ```
@@ -399,6 +410,68 @@ EXECUTION_COMMIT_FAILED
 ```
 
 Executor failures never expose the prepared clone or partially apply an operation.
+
+The pre-commit breakdown is an observation captured with `ContextManager.estimateComponents(messagesBefore, tools)`. It includes message serialization overhead, tool schemas/tool choice, and fixed prompt overhead. It does not grant mutation authority and does not claim actual reduction before commit.
+
+## D6 Post-commit Finalization
+
+`finalizeExecution()` accepts only `ExecutionResult.status == "COMMITTED"`. It requires the current `contextGeneration` to equal D5's `contextGenerationAfter`, the exact tool-envelope digest to match, and the existing Context Inventory registry to still have D5's `inventoryBefore` identity. Drift fails before any accounting claim.
+
+D6 calls `ContextInventory.synchronize()` on the existing registry rather than creating a new one. Therefore:
+
+- committed messages become the authoritative ACTIVE unit set;
+- removed units become inactive (`EVICTED` or `EXTERNALIZED` according to recoverability);
+- replacements retain their stable Context Unit ID;
+- replacement content and token cost are refreshed;
+- the new inventory ID/fingerprint reflects committed context.
+
+Before and after token values use the same canonical estimator:
+
+```text
+before = ContextManager.estimateComponents(messagesBefore, tools)
+after  = ContextManager.estimateComponents(committedMessages, tools)
+
+actualReductionTokens = before.totalTokens - after.totalTokens
+```
+
+Tool tokens and fixed overhead must be identical on both sides. Actual reduction is signed and is never clamped: a larger canonical externalization marker correctly produces a negative value. `potentialReductionUpperBound` remains a separate M3 gross bound, not a substitute for observation.
+
+Success returns:
+
+```ts
+interface ExecutionReport {
+  schemaVersion: 1;
+  reportId: string;
+  sourceExecutionId: string;
+  status: "FINALIZED";
+  executionCommitted: true;
+  inventoryBefore: InventoryIdentity;
+  inventoryAfter: InventoryIdentity;
+  tokens: {
+    before: TokenBreakdown;
+    after: TokenBreakdown;
+    potentialReductionUpperBound: number;
+    actualReductionTokens: number;
+  };
+  runtime: {
+    finalizedAt: string;
+    contextGeneration: number;
+  };
+}
+```
+
+Failure returns `EXECUTION_FINALIZATION_FAILED`, preserves `executionCommitted: true` for a valid D5 commit, and leaves `actualReductionTokens: null`. Reason codes are:
+
+```text
+INVALID_EXECUTION_RESULT
+FINALIZATION_STALE_CONTEXT
+FINALIZATION_INVENTORY_MISMATCH
+INVENTORY_REBUILD_FAILED
+ACCOUNTING_IDENTITY_MISMATCH
+TOKEN_ACCOUNTING_FAILED
+```
+
+Finalization failure is not `EXECUTION_ABORTED`: D5 already committed, D6 never rolls it back, and no unverified actual-reduction claim is emitted.
 
 ## Failure result
 
@@ -422,12 +495,6 @@ D0-D4 explicitly exclude:
 - inventory rebuild;
 - actual re-tokenization or actual-reduction claims.
 
-These guarantees remain true through D4. D5 may replace only the active message-array reference after all gates pass. It still performs no artifact, memory, lifecycle, authority, inventory, or accounting write.
+These guarantees remain true through D4. D5 may replace only the active message-array reference after all gates pass. D6 may update the derived Context Inventory registry and accounting report, but performs no artifact, project-memory, episode, authority, or semantic-policy write.
 
-## Remaining dev.5 sequence
-
-```text
-D6  Inventory rebuild + actual re-tokenization + ExecutionReport
-```
-
-D6 must rebuild Context Inventory from the committed messages, perform actual re-tokenization, calculate actual reduction, and attach those measurements without changing the D5 authorization boundary.
+Dev.5 stops at `ExecutionReport`. Its "actual" token reduction is the observed signed difference under ContextOS's frozen-compatible canonical estimator; it is not a claim of tokenizer-exact backend tokenization.

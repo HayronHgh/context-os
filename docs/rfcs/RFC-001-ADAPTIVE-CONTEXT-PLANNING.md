@@ -322,7 +322,7 @@ Semantic Planner healthy?
 
 Semantic intelligence must be allowed to fail while ContextOS continues to work safely.
 
-## M5: Validated Transformation and Execution — D0-D5 implemented
+## M5: Validated Transformation and Execution — D0-D6 implemented
 
 M3 authorization proves policy eligibility, not current recovery-source existence. Dev.5 adds another permission boundary:
 
@@ -333,7 +333,8 @@ ValidatedPlan
   -> TransformationCandidate
   -> ValidatedTransformation       (D4)
   -> atomic execution              (D5)
-  -> inventory rebuild/re-tokenize (D6, not implemented)
+  -> inventory rebuild/accounting  (D6)
+  -> ExecutionReport
 ```
 
 D0-D4 are zero-mutation. A strict preflight admits only current, potentially sufficient, non-fallback ValidatedPlans with complete inventory coverage. Artifact recovery requires existence and integrity, repository recovery requires a contained valid current source/path, memory recovery requires referenced state, and rebuildable recovery requires an available mechanism. Any failure returns `EXECUTION_PRECONDITION_FAILED` and no `ExecutablePlan`.
@@ -346,7 +347,9 @@ D4 binds the candidate to the exact `ExecutablePlan` and current inventory, requ
 
 Recovery proof is point-in-time evidence rather than a lease. D5 must rerun preflight immediately before commit or atomically recheck the bound inventory and sources; an `ExecutablePlan` is single-use and stale bindings abort the whole execution.
 
-D5 is a model-free exact executor. It rebinds Validation/Candidate/ExecutablePlan/current Inventory, hashes the current source and exact candidate bytes again, and reruns destructive-action recovery verification. All operations are built on a complete message clone and checked for tool-call structure. A context-generation/reference guard closes the asynchronous recovery TOCTOU window; only then does Runtime perform one synchronous message-array reference swap and consume the validation ID. Any failure returns `EXECUTION_ABORTED` with no partial executor mutation. D6 alone owns inventory rebuild, actual re-tokenization, and reduction measurement.
+D5 is a model-free exact executor. It rebinds Validation/Candidate/ExecutablePlan/current Inventory, hashes the current source and exact candidate bytes again, and reruns destructive-action recovery verification. All operations are built on a complete message clone and checked for tool-call structure. A context-generation/reference guard closes the asynchronous recovery TOCTOU window; only then does Runtime perform one synchronous message-array reference swap and consume the validation ID. Any failure returns `EXECUTION_ABORTED` with no partial executor mutation. D5 also captures canonical pre-commit accounting and the exact tool-envelope digest without claiming actual reduction.
+
+D6 is post-commit observation, not mutation authority. It requires the exact committed generation and pre-commit inventory identity, synchronizes the existing Context Inventory registry from committed messages, and recomputes the complete ContextManager token envelope with identical tools and fixed overhead. Removed units become inactive, replacements retain stable IDs, and the new fingerprint reflects the commit. `actualReductionTokens` is the signed before-minus-after result and remains separate from M3's potential upper bound. Finalization drift/failure never rolls back or relabels D5; it returns `EXECUTION_FINALIZATION_FAILED` with no actual-reduction claim.
 
 ## Release-candidate benchmark design
 
@@ -378,10 +381,10 @@ Metrics are reported separately. SCU is a convenience composite, not a replaceme
 | M2 | Planner protocol | Strict schema and fake-plan fixtures |
 | M3 | Runtime Validator | Proposal is never permission; fail-closed tests |
 | M4 | Qwen Planner | Bounded inventory, strict output, fallback |
-| M5 | Validated Transformation/Execution | D0-D5 validated atomic execution implemented; D6 rebuild/accounting pending |
+| M5 | Validated Transformation/Execution | D0-D6 atomic execution, rebuild, and signed accounting implemented |
 | RC | A/B/C benchmark | Same control envelope; publish raw results |
 
-M0/M1 shipped in `0.2.0-dev.1`, M2 in `0.2.0-dev.2`, M3 in `0.2.0-dev.3`, bounded proposal generation in `0.2.0-dev.4`, and validated atomic execution through D5 in `0.2.0-dev.5`. Each remains independently reviewable. D0-D4 are zero-mutation; D5 is the sole deterministic message-context commit boundary and never calls a model.
+M0/M1 shipped in `0.2.0-dev.1`, M2 in `0.2.0-dev.2`, M3 in `0.2.0-dev.3`, bounded proposal generation in `0.2.0-dev.4`, and the complete D0-D6 validated execution/finalization chain in `0.2.0-dev.5`. Each remains independently reviewable. D0-D4 are zero-mutation; D5 is the sole deterministic message-context commit boundary; D6 is model-free derived rebuild/accounting.
 
 ## Consequences
 

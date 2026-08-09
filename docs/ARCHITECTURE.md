@@ -135,7 +135,13 @@ Only mechanically valid COMPRESS candidates reach the isolated, tool-free `trans
 
 D5 is model-free and treats `ValidatedTransformation` as approval metadata rather than a self-contained capability. `AtomicExecutor` requires the original candidate and executable plan, exact current inventory identity and unit coverage, Runtime-owned messages, a writable context generation, and a `RecoveryVerifier`. It rechecks every source/candidate SHA-256 and reruns current recovery verification for destructive actions before commit.
 
-All NOOP, AUDIT_ONLY, REMOVE, and exact REPLACE operations are first applied to a complete cloned message context. Runtime validates tool-call structure, detects generation/reference drift across asynchronous recovery checks, and then performs one synchronous message-array reference swap. The validation ID is consumed in the same critical section. Any stale binding, missing recovery source, build failure, repeated validation, or commit failure returns immutable `EXECUTION_ABORTED` without partial executor mutation. D6 inventory rebuild and actual re-tokenization remain absent.
+All NOOP, AUDIT_ONLY, REMOVE, and exact REPLACE operations are first applied to a complete cloned message context. Runtime validates tool-call structure, detects generation/reference drift across asynchronous recovery checks, and then performs one synchronous message-array reference swap. The validation ID is consumed in the same critical section. Any stale binding, missing recovery source, build failure, repeated validation, or commit failure returns immutable `EXECUTION_ABORTED` without partial executor mutation. D5 also preserves a canonical pre-commit token breakdown and exact tool-envelope digest for D6, but makes no actual-reduction claim.
+
+### Post-commit finalization (`src/execution-finalizer.js`, `src/execution-report.js`)
+
+D6 accepts only an immutable committed `ExecutionResult` bound to the current context generation and the still-stale pre-commit inventory registry. It reruns `ContextInventory.synchronize()` on that existing registry, so removed units become inactive while replacements retain stable IDs and receive current content/token cost. The resulting identity must reflect the committed messages.
+
+Before and after values both come from `ContextManager.estimateComponents()` with the exact same tool-schema digest and fixed overhead. Actual reduction is the signed `before.totalTokens - after.totalTokens`; it is never clamped to zero and remains distinct from M3's gross potential upper bound. Success returns an immutable `ExecutionReport`. Drift, rebuild, or accounting failure returns `EXECUTION_FINALIZATION_FAILED`, preserves `actualReductionTokens: null`, and never rolls back or relabels the D5 commit.
 
 ### Context manager (`src/context-manager.js`)
 

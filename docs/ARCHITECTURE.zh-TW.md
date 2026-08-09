@@ -135,7 +135,13 @@ D4 將 candidate 綁回 exact `ExecutablePlan` 與 current inventory，要求每
 
 D5 完全 model-free，並將 `ValidatedTransformation` 視為 approval metadata，而非 self-contained capability。`AtomicExecutor` 要求原始 candidate 與 executable plan、exact current inventory identity 與 unit coverage、Runtime-owned messages、writable context generation，以及 `RecoveryVerifier`；commit 前會重查每個 source／candidate SHA-256，並重新驗證 destructive action 的 current recovery source。
 
-所有 NOOP、AUDIT_ONLY、REMOVE 與 exact REPLACE operation 都先套用到完整 cloned message context。Runtime 驗證 tool-call structure、偵測 asynchronous recovery checks 期間的 generation／reference drift，最後只做一次 synchronous message-array reference swap，並在同一 critical section consume validation ID。任何 stale binding、recovery source 消失、build failure、validation 重複使用或 commit failure，都回傳 immutable `EXECUTION_ABORTED`，不留下 partial executor mutation。D6 inventory rebuild 與 actual re-tokenization 仍不存在。
+所有 NOOP、AUDIT_ONLY、REMOVE 與 exact REPLACE operation 都先套用到完整 cloned message context。Runtime 驗證 tool-call structure、偵測 asynchronous recovery checks 期間的 generation／reference drift，最後只做一次 synchronous message-array reference swap，並在同一 critical section consume validation ID。任何 stale binding、recovery source 消失、build failure、validation 重複使用或 commit failure，都回傳 immutable `EXECUTION_ABORTED`，不留下 partial executor mutation。D5 也為 D6 保存 canonical pre-commit token breakdown 與 exact tool-envelope digest，但不宣稱 actual reduction。
+
+### Post-commit finalization（`src/execution-finalizer.js`、`src/execution-report.js`）
+
+D6 只接受 immutable committed `ExecutionResult`，並要求 current context generation 與仍為 pre-commit 狀態的 inventory registry 完全匹配。它在原有 registry 重跑 `ContextInventory.synchronize()`，使 removed unit 轉為 inactive，replacement 保留 stable ID 並取得 current content／token cost；新 identity 必須反映 committed messages。
+
+Before／after 都使用 `ContextManager.estimateComponents()`，並綁定 exact same tool-schema digest 與 fixed overhead。Actual reduction 是 signed `before.totalTokens - after.totalTokens`，絕不 clamp 到零，且與 M3 gross potential upper bound 分開。成功回傳 immutable `ExecutionReport`；drift、rebuild 或 accounting failure 回傳 `EXECUTION_FINALIZATION_FAILED`、維持 `actualReductionTokens: null`，且不 rollback 或重新標記 D5 commit。
 
 ### Context Manager（`src/context-manager.js`）
 

@@ -23,7 +23,11 @@
 - 新增 model-free D5 Atomic Executor，在 commit 前重新綁定 Validation／Candidate／Plan／Inventory、source／candidate digests 與 fresh recovery proofs。
 - 所有 operation 先在 cloned message context 完整 build，通過 tool-call structure 與 context generation 後才以一次 reference swap commit；任何 failure 都不改 active context。
 - 強制 single-use validation consumption，輸出 immutable `ExecutionResult`／`EXECUTION_ABORTED`，不允許 partial execution。
-- 新增雙語 D0-D5 contract；D6 inventory rebuild、actual re-tokenization、artifacts 與 memory promotion 仍不存在。
+- D5 commit 前使用 canonical ContextManager estimator 與 exact tool-schema digest 保存 token accounting，但在 commit 前不宣稱 actual reduction。
+- 新增 generation-bound D6 post-commit finalization，以原有 Context Inventory registry rebuild，保留 stable ID 與 inactive lifecycle history。
+- 使用相同 estimator／tools／overhead 測量 committed context，保留 signed negative reduction，並將 potential upper bound 與 actual reduction 分開回報。
+- 輸出 immutable `ExecutionReport` 或 `EXECUTION_FINALIZATION_FAILED`；finalization failure 不 rollback，也不把 committed D5 改報 aborted。
+- 新增完整雙語 D0-D6 dev.5 contract；artifacts 與 memory promotion 仍不存在。
 
 ## [0.2.0-dev.4] - 2026-08-10
 

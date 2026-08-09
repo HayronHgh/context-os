@@ -4,6 +4,7 @@ import { AgentRuntime } from "../src/agent-runtime.js";
 import { AtomicExecutor } from "../src/atomic-executor.js";
 import { validateCompactionAuthorization } from "../src/compaction-validator.js";
 import { ContextInventory } from "../src/context-inventory.js";
+import { ContextManager } from "../src/context-manager.js";
 import { prepareTransformation } from "../src/context-transformer.js";
 import { preflightValidatedPlan } from "../src/execution-preflight.js";
 import { validateTransformation } from "../src/post-transform-validator.js";
@@ -12,6 +13,21 @@ import { RecoveryVerifier } from "../src/recovery-verifier.js";
 const fixedNow = () => new Date("2026-08-10T08:00:00.000Z");
 const sourceToCompress = "Constraint ALPHA remains. Identifier API_42 and path src/core.js are required. Error E_FAIL is unresolved. ".repeat(30);
 const acceptedCompression = "Keep constraint ALPHA, identifier API_42, path src/core.js, and unresolved error E_FAIL.";
+const accountingTools = [{
+  type: "function",
+  function: {
+    name: "read_file",
+    description: "Read one file",
+    parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"] }
+  }
+}];
+const contextConfig = {
+  contextWindow: 32768,
+  reservedOutputTokens: 4096,
+  fixedPromptOverheadTokens: 512,
+  maxToolOutputChars: 12000,
+  thresholds: { garbageCollect: 0.55, prune: 0.65, semanticCompact: 0.72, hardTransfer: 0.8, failure: 0.9 }
+};
 
 function descriptor({ id, kind, authority, recoverability = "none", recoveryRef = null }) {
   return {
@@ -161,6 +177,8 @@ async function fixture({ state = { artifact: true, repository: true } } = {}) {
     candidate,
     validatedTransformation,
     verifier,
+    contextManager: new ContextManager(contextConfig),
+    tools: accountingTools,
     modelCalls,
     context: { messages, contextGeneration: 11 }
   };
@@ -174,6 +192,8 @@ function inputOf(value, overrides = {}) {
     inventory: value.inventory,
     context: value.context,
     recoveryVerifier: value.verifier,
+    contextManager: value.contextManager,
+    tools: value.tools,
     ...overrides
   };
 }
@@ -219,6 +239,10 @@ test("D5 atomically commits every exact operation and returns an immutable resul
   assert.equal(result.sourceValidationId, value.validatedTransformation.validationId);
   assert.equal(result.runtime.contextGenerationBefore, 11);
   assert.equal(result.runtime.contextGenerationAfter, 12);
+  assert.ok(result.runtime.tokenAccountingBefore.totalTokens > 0);
+  assert.ok(result.runtime.tokenAccountingBefore.toolTokens > 0);
+  assert.equal(result.runtime.tokenAccountingBefore.fixedPromptOverheadTokens, 512);
+  assert.equal(result.potentialReductionUpperBound, value.executablePlan.runtime.potentialReductionUpperBound);
   assert.equal(value.context.contextGeneration, 12);
   assert.notEqual(value.context.messages, messagesBefore);
   assert.deepEqual(messageById(value.context.messages, "cu_atomic_000001"), noopBefore);

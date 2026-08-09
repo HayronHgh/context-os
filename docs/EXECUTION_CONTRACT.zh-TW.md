@@ -4,7 +4,7 @@
 
 版本：`0.2.0-dev.5`
 
-狀態：D0 execution protocol 至 D5 Atomic Execution 已實作；D6 rebuild／accounting 仍不存在。
+狀態：D0 execution protocol 至 D6 Post-commit Finalization 已實作。
 
 ## 目的
 
@@ -24,9 +24,15 @@ Post-transform Validation
 Atomic Execution
       ↓
 ExecutionResult
+      ↓
+Post-commit Finalization
+      ↓
+Inventory Rebuild + Canonical Re-estimation
+      ↓
+ExecutionReport
 ```
 
-目前實作在 D5 回傳 immutable committed／aborted `ExecutionResult` 後停止。D5 是這條 chain 唯一能 mutation active message context 的 layer；D6 inventory rebuild 與 actual re-tokenization 仍是獨立階段。
+目前實作在 D6 回傳 immutable finalized／finalization-failed `ExecutionReport` 後停止。D5 仍是唯一能 mutation active message context 的 layer；D6 只做 derived observation、inventory synchronization 與 canonical accounting，不具 rollback authority。
 
 ## 核心 invariants
 
@@ -315,7 +321,9 @@ D5 同時取得這份 validation 與原始 `TransformationCandidate`，並在任
     messages,
     contextGeneration
   },
-  recoveryVerifier
+  recoveryVerifier,
+  contextManager,
+  tools
 }
 ```
 
@@ -375,11 +383,14 @@ interface ExecutionResult {
     unitId: string;
     operation: "NOOP" | "REMOVE" | "REPLACE" | "AUDIT_ONLY";
   }>;
+  potentialReductionUpperBound: number;
   committed: true;
   runtime: {
     committedAt: string;
     contextGenerationBefore: number;
     contextGenerationAfter: number;
+    tokenAccountingBefore: TokenBreakdown;
+    accountingToolsDigest: `sha256:${string}`;
   };
 }
 ```
@@ -399,6 +410,68 @@ EXECUTION_COMMIT_FAILED
 ```
 
 Executor failure 不會暴露 prepared clone，也不會 partial apply operation。
+
+Pre-commit breakdown 使用 `ContextManager.estimateComponents(messagesBefore, tools)` 捕捉，包含 message serialization overhead、tool schemas／tool choice 與 fixed prompt overhead。它不授予 mutation authority，也不在 commit 前宣稱 actual reduction。
+
+## D6 Post-commit Finalization
+
+`finalizeExecution()` 只接受 `ExecutionResult.status == "COMMITTED"`。Current `contextGeneration` 必須等於 D5 `contextGenerationAfter`，exact tool-envelope digest 必須一致，原有 Context Inventory registry 也必須仍是 D5 `inventoryBefore` identity。任何 drift 都在 accounting claim 前 fail closed。
+
+D6 在原有 registry 呼叫 `ContextInventory.synchronize()`，不建立新 registry，因此：
+
+- committed messages 成為 authoritative ACTIVE unit set；
+- removed unit 依 recoverability 轉為 inactive `EVICTED` 或 `EXTERNALIZED`；
+- replacement 保留 stable Context Unit ID；
+- replacement content 與 token cost 更新；
+- 新 inventory ID／fingerprint 反映 committed context。
+
+Before／after token values 使用相同 canonical estimator：
+
+```text
+before = ContextManager.estimateComponents(messagesBefore, tools)
+after  = ContextManager.estimateComponents(committedMessages, tools)
+
+actualReductionTokens = before.totalTokens - after.totalTokens
+```
+
+Tool tokens 與 fixed overhead 在兩側必須完全相同。Actual reduction 保留 signed value，絕不 clamp；canonical externalization marker 使 context 變大時會正確回報負數。`potentialReductionUpperBound` 仍是獨立的 M3 gross bound，不能取代 observation。
+
+成功回傳：
+
+```ts
+interface ExecutionReport {
+  schemaVersion: 1;
+  reportId: string;
+  sourceExecutionId: string;
+  status: "FINALIZED";
+  executionCommitted: true;
+  inventoryBefore: InventoryIdentity;
+  inventoryAfter: InventoryIdentity;
+  tokens: {
+    before: TokenBreakdown;
+    after: TokenBreakdown;
+    potentialReductionUpperBound: number;
+    actualReductionTokens: number;
+  };
+  runtime: {
+    finalizedAt: string;
+    contextGeneration: number;
+  };
+}
+```
+
+Failure 回傳 `EXECUTION_FINALIZATION_FAILED`；若 D5 已合法 commit，保留 `executionCommitted: true`，並維持 `actualReductionTokens: null`。Reason codes：
+
+```text
+INVALID_EXECUTION_RESULT
+FINALIZATION_STALE_CONTEXT
+FINALIZATION_INVENTORY_MISMATCH
+INVENTORY_REBUILD_FAILED
+ACCOUNTING_IDENTITY_MISMATCH
+TOKEN_ACCOUNTING_FAILED
+```
+
+Finalization failure 不是 `EXECUTION_ABORTED`：D5 已 commit，D6 不會 rollback，也不會產生未驗證的 actual-reduction claim。
 
 ## Failure result
 
@@ -422,12 +495,6 @@ D0-D4 明確排除：
 - inventory rebuild；
 - actual re-tokenization 或 actual-reduction claim。
 
-這些保證完整維持至 D4。D5 只有在所有 gates 通過後，才能替換 active message-array reference；仍不會執行 artifact、memory、lifecycle、authority、inventory 或 accounting write。
+這些保證完整維持至 D4。D5 只有在所有 gates 通過後才能替換 active message-array reference。D6 可更新 derived Context Inventory registry 與 accounting report，但不執行 artifact、project-memory、episode、authority 或 semantic-policy write。
 
-## 剩餘 dev.5 sequence
-
-```text
-D6  Inventory rebuild + actual re-tokenization + ExecutionReport
-```
-
-D6 必須從 committed messages rebuild Context Inventory、執行 actual re-tokenization、計算 actual reduction，並附加 measurement，但不能改變 D5 authorization boundary。
+Dev.5 停在 `ExecutionReport`。此處的「actual」token reduction 是 ContextOS frozen-compatible canonical estimator 下的 observed signed difference，不代表 tokenizer-exact backend tokenization。

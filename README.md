@@ -33,9 +33,9 @@ The goal is simple: a conversation may be compacted or reset without killing the
 
 ## Status
 
-**Experimental · v0.2.0-dev.5 D0-D5 Atomic Execution · Windows-first**
+**Experimental · v0.2.0-dev.5 D0-D6 Execution Finalization · Windows-first**
 
-The deterministic control remains frozen at [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2), and M4 experiment inputs are pinned to `aa59f4d`. The v0.2 development line now reaches model-free atomic context execution: D5 rebinds the complete D2-D4 chain, source/candidate bytes, current recovery sources, single-use validation state, and context generation before building a complete clone and committing one message-array reference swap. D6 inventory rebuild, actual re-tokenization, artifact creation, and memory promotion remain absent.
+The deterministic control remains frozen at [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2), and M4 experiment inputs are pinned to `aa59f4d`. The v0.2 development line now reaches model-free execution finalization: D5 atomically commits the exact validated context, then D6 generation-binds that commit, rebuilds the existing Context Inventory registry, and uses the same canonical ContextManager estimator and tool envelope to report signed actual reduction. Artifact creation and memory promotion remain absent.
 
 Tested with:
 
@@ -81,6 +81,10 @@ The runtime is not tied to a specific model name, but the backend must return Op
 - Model-free D5 pre-commit revalidation of the complete Validation/Candidate/Plan/Inventory chain
 - Single-use, generation-guarded Atomic Executor with whole-plan clone/build and one reference-swap commit
 - Immutable `ExecutionResult`; stale context, recovery drift, or any build failure aborts without partial mutation
+- Post-commit D6 finalization bound to the exact committed context generation
+- Existing-registry Context Inventory rebuild with stable IDs and inactive removed units
+- Canonical before/after ContextManager accounting with identical tools/overhead and signed actual reduction
+- Immutable `ExecutionReport`; finalization failure never rewrites D5 as aborted or rolls back its commit
 - Real-path-aware project-root containment for file and artifact tools
 - Approval prompts for writes, edits, and shell commands
 - Destructive-command guardrails

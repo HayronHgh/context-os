@@ -1,4 +1,5 @@
 import { serializeMessageForModel } from "./context-messages.js";
+import { ContextManager } from "./context-manager.js";
 import { isContextUnitId } from "./context-unit.js";
 import { EXECUTABLE_PLAN_SCHEMA_VERSION } from "./execution-preflight.js";
 import { RecoveryVerifier } from "./recovery-verifier.js";
@@ -9,7 +10,12 @@ import {
   contentDigest
 } from "./transformation-candidate.js";
 import { VALIDATED_TRANSFORMATION_SCHEMA_VERSION } from "./validated-transformation.js";
-import { createExecutionAbort, createExecutionResult } from "./execution-result.js";
+import {
+  accountingToolsDigest,
+  createExecutionAbort,
+  createExecutionResult,
+  validTokenBreakdown
+} from "./execution-result.js";
 
 const VALIDATION_FIELDS = [
   "schemaVersion",
@@ -366,7 +372,9 @@ export class AtomicExecutor {
     executablePlan,
     inventory,
     context,
-    recoveryVerifier
+    recoveryVerifier,
+    contextManager,
+    tools = []
   } = {}) {
     const abortedAt = this.now().toISOString();
     const abort = (reasonCodes, checks = []) => createExecutionAbort({
@@ -383,7 +391,10 @@ export class AtomicExecutor {
       || this.inFlightValidationIds.has(validatedTransformation.validationId)) {
       return abort(["EXECUTION_ALREADY_CONSUMED"]);
     }
-    if (!validContext(context) || !(recoveryVerifier instanceof RecoveryVerifier)) {
+    if (!validContext(context)
+      || !(recoveryVerifier instanceof RecoveryVerifier)
+      || !(contextManager instanceof ContextManager)
+      || !Array.isArray(tools)) {
       return abort(["EXECUTION_CHAIN_MISMATCH"]);
     }
     if (this.activeContexts.has(context)) return abort(["EXECUTION_STALE_CONTEXT"]);
@@ -423,6 +434,16 @@ export class AtomicExecutor {
       return abort(["SOURCE_CONTENT_CHANGED"]);
     }
     if (!initialBindings.valid) return abort(initialBindings.reasons, initialBindings.checks);
+
+    let tokenAccountingBefore;
+    let toolsDigest;
+    try {
+      tokenAccountingBefore = contextManager.estimateComponents(messagesBefore, tools);
+      toolsDigest = accountingToolsDigest(tools);
+      if (!validTokenBreakdown(tokenAccountingBefore)) throw new Error("Invalid token accounting breakdown");
+    } catch {
+      return abort(["EXECUTION_BUILD_FAILED"]);
+    }
 
     let nextMessages;
     try {
@@ -491,6 +512,9 @@ export class AtomicExecutor {
         validatedTransformation,
         inventoryBefore: inventory.inventory,
         operations: candidate.decisions.map(({ unitId, operation }) => ({ unitId, operation })),
+        potentialReductionUpperBound: executablePlan.runtime.potentialReductionUpperBound,
+        tokenAccountingBefore,
+        toolsDigest,
         committedAt: this.now().toISOString(),
         generationBefore,
         generationAfter: context.contextGeneration

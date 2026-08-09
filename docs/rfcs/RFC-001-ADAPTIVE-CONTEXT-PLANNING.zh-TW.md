@@ -322,7 +322,7 @@ Semantic Planner healthy?
 
 Semantic intelligence 必須允許故障，而 ContextOS 仍能安全工作。
 
-## M5：Validated Transformation and Execution — D0-D5 已實作
+## M5：Validated Transformation and Execution — D0-D6 已實作
 
 M3 authorization 證明 policy eligibility，不代表 recovery source 此刻仍存在。Dev.5 新增另一層 permission boundary：
 
@@ -333,7 +333,8 @@ ValidatedPlan
   -> TransformationCandidate
   -> ValidatedTransformation       （D4）
   -> atomic execution              （D5）
-  -> inventory rebuild/re-tokenize （D6，未實作）
+  -> inventory rebuild/accounting  （D6）
+  -> ExecutionReport
 ```
 
 D0-D4 是 zero-mutation。Strict preflight 只接受 current、potentially sufficient、non-fallback 且完整覆蓋 inventory 的 ValidatedPlan。Artifact recovery 要求存在與 integrity；repository recovery 要求 contained、valid current source/path；memory recovery 要求 referenced state 存在；rebuildable recovery 要求 mechanism 可用。任一 failure 都回傳 `EXECUTION_PRECONDITION_FAILED`，且不產生 `ExecutablePlan`。
@@ -346,7 +347,9 @@ D4 將 candidate 綁回 exact `ExecutablePlan` 與 current inventory，要求 ex
 
 Recovery proof 是 point-in-time evidence，不是 lease。D5 必須在 commit 前立即重跑 preflight，或 atomically 重新檢查 bound inventory 與 sources；`ExecutablePlan` 僅能 single-use，binding stale 時整批 execution 必須 abort。
 
-D5 是 model-free exact executor。它重新綁定 Validation／Candidate／ExecutablePlan／current Inventory，再次 hash current source 與 exact candidate bytes，並重跑 destructive-action recovery verification。所有 operation 都在完整 message clone 上 build，且必須通過 tool-call structure check。Context-generation／reference guard 封閉 asynchronous recovery 的 TOCTOU window；之後 Runtime 才執行一次 synchronous message-array reference swap 並 consume validation ID。任一 failure 都回傳 `EXECUTION_ABORTED`，不留下 partial executor mutation。只有 D6 負責 inventory rebuild、actual re-tokenization 與 reduction measurement。
+D5 是 model-free exact executor。它重新綁定 Validation／Candidate／ExecutablePlan／current Inventory，再次 hash current source 與 exact candidate bytes，並重跑 destructive-action recovery verification。所有 operation 都在完整 message clone 上 build，且必須通過 tool-call structure check。Context-generation／reference guard 封閉 asynchronous recovery 的 TOCTOU window；之後 Runtime 才執行一次 synchronous message-array reference swap 並 consume validation ID。任一 failure 都回傳 `EXECUTION_ABORTED`，不留下 partial executor mutation。D5 也保存 canonical pre-commit accounting 與 exact tool-envelope digest，但不宣稱 actual reduction。
+
+D6 是 post-commit observation，不是 mutation authority。它要求 exact committed generation 與 pre-commit inventory identity，從 committed messages synchronize 原有 Context Inventory registry，並以相同 tools／fixed overhead 重算完整 ContextManager token envelope。Removed unit 轉 inactive，replacement 保留 stable ID，新 fingerprint 反映 commit。`actualReductionTokens` 是 signed before-minus-after，且與 M3 potential upper bound 分開。Finalization drift／failure 不 rollback 或重新標記 D5，只回傳 `EXECUTION_FINALIZATION_FAILED`，不產生 actual-reduction claim。
 
 ## Release-candidate benchmark design
 
@@ -378,10 +381,10 @@ SCU  = CG * WIR
 | M2 | Planner protocol | Strict schema 與 fake-plan fixtures |
 | M3 | Runtime Validator | Proposal 不等於 permission；fail-closed tests |
 | M4 | Qwen Planner | Bounded inventory、strict output、fallback |
-| M5 | Validated Transformation/Execution | D0-D5 validated atomic execution 已實作；D6 rebuild／accounting 待完成 |
+| M5 | Validated Transformation/Execution | D0-D6 atomic execution、rebuild 與 signed accounting 已實作 |
 | RC | A/B/C benchmark | 相同 control envelope；公開 raw results |
 
-M0/M1 於 `0.2.0-dev.1` 完成，M2 於 `0.2.0-dev.2`、M3 於 `0.2.0-dev.3`、bounded proposal generation 於 `0.2.0-dev.4` 完成，`0.2.0-dev.5` 則完成至 D5 的 validated atomic execution。各階段維持 independently reviewable；D0-D4 是 zero-mutation，D5 是唯一 deterministic message-context commit boundary，且完全不呼叫 model。
+M0/M1 於 `0.2.0-dev.1` 完成，M2 於 `0.2.0-dev.2`、M3 於 `0.2.0-dev.3`、bounded proposal generation 於 `0.2.0-dev.4` 完成，`0.2.0-dev.5` 則完成完整 D0-D6 validated execution／finalization chain。各階段維持 independently reviewable；D0-D4 是 zero-mutation，D5 是唯一 deterministic message-context commit boundary，D6 是 model-free derived rebuild／accounting。
 
 ## 影響
 

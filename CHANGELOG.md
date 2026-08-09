@@ -23,7 +23,11 @@ All notable changes to this project will be documented here.
 - Add a model-free D5 Atomic Executor that rebinds Validation/Candidate/Plan/Inventory, source/candidate digests, and fresh recovery proofs before commit.
 - Build all operations on a cloned message context, enforce tool-call structure and context generation, then commit with one reference swap; every failure leaves the active context unchanged.
 - Enforce single-use validation consumption and emit immutable `ExecutionResult` / `EXECUTION_ABORTED` results with no partial execution.
-- Document the D0-D5 contract bilingually; D6 inventory rebuild, actual re-tokenization, artifacts, and memory promotion remain absent.
+- Capture D5 pre-commit token accounting with the canonical ContextManager estimator and exact tool-schema digest, without claiming actual reduction before commit.
+- Add D6 generation-bound post-commit finalization, rebuilding the existing Context Inventory registry while retaining stable IDs and inactive lifecycle history.
+- Measure the committed context with the same estimator/tools/overhead, preserve signed negative reduction, and report potential upper bound separately from actual reduction.
+- Emit immutable `ExecutionReport` or `EXECUTION_FINALIZATION_FAILED`; finalization failure never rolls back or relabels the committed D5 execution.
+- Document the complete D0-D6 dev.5 contract bilingually; artifacts and memory promotion remain absent.
 
 ## [0.2.0-dev.4] - 2026-08-10
 

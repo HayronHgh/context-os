@@ -48,6 +48,8 @@ ContextOS 實作本機 coding agent 外部 Context Runtime 已凍結的前兩個
 | `src/qwen-transform-validator.js` | Isolated、無 tools 的 transform-validator-v1 assessment |
 | `src/atomic-executor.js` | Model-free、single-use、generation-guarded atomic context execution |
 | `src/execution-result.js` | Immutable committed／aborted execution result schemas |
+| `src/execution-finalizer.js` | Generation-bound inventory rebuild 與 canonical post-commit accounting |
+| `src/execution-report.js` | Immutable finalized／finalization-failed report schemas |
 | `src/context-manager.js` | Budget、pruning、structured compaction |
 | `src/llama-client.js` | OpenAI-compatible HTTP client |
 | `src/memory-store.js` | JSON、JSONL、Markdown、episodes、artifacts |
@@ -144,4 +146,4 @@ v0.1.2 凍結 deterministic Phase 1/2 baseline。後續 0.1.x 只處理 critical
 
 v0.2.0 保留給 **Adaptive Semantic Context Planning**：token pressure 決定何時可能需要 intervention，task semantics 提議什麼重要，凍結的 runtime invariants 決定哪些 action 合法。第一個 benchmark 應比較 threshold、pure semantic 與 hybrid planners，不能改動 v0.1.2 control group。
 
-`0.2.0-dev.1` 完成 M0/M1，`0.2.0-dev.2` 完成 strict proposal protocol，`0.2.0-dev.3` 完成 deterministic Runtime authorization，`0.2.0-dev.4` 完成 bounded Qwen proposal generation。Dev.5 D0-D5 現在加入 current-source recovery proof、strict `ValidatedPlan` 到 `ExecutablePlan` preflight、immutable candidate generation／validation，以及 model-free atomic context execution。D5 重新驗證 exact chain、bytes、fresh recovery sources、single-use state 與 context generation；所有 operation 先在 clone build，最後只 commit 一次 message-array reference swap。M4 experiment identity 持續由 hash 固定；D6 inventory rebuild、actual re-tokenization、artifact write 與 memory promotion 仍不存在。實作契約記錄於 [CompactionPlan Protocol](COMPACTION_PLAN_PROTOCOL.zh-TW.md)、[Compaction Authorization](COMPACTION_VALIDATION.zh-TW.md)、[Bounded Semantic Planning](BOUNDED_SEMANTIC_PLANNING.zh-TW.md) 與 [Execution Contract](EXECUTION_CONTRACT.zh-TW.md)；完整 threat boundaries 與 gates 定義於 [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.zh-TW.md)。
+`0.2.0-dev.1` 完成 M0/M1，`0.2.0-dev.2` 完成 strict proposal protocol，`0.2.0-dev.3` 完成 deterministic Runtime authorization，`0.2.0-dev.4` 完成 bounded Qwen proposal generation。Dev.5 D0-D6 現在完成 current-source recovery proof、strict preflight、immutable candidate generation／validation、model-free atomic execution、existing-registry inventory rebuild，以及 canonical signed post-commit accounting。D5 保存 pre-commit ContextManager breakdown 與 tool-envelope identity；D6 綁定 committed context generation、rebuild stable units／lifecycles，並將 actual 與 potential reduction 分開回報。M4 experiment identity 持續由 hash 固定；artifact write 與 memory promotion 仍不存在。實作契約記錄於 [CompactionPlan Protocol](COMPACTION_PLAN_PROTOCOL.zh-TW.md)、[Compaction Authorization](COMPACTION_VALIDATION.zh-TW.md)、[Bounded Semantic Planning](BOUNDED_SEMANTIC_PLANNING.zh-TW.md) 與 [Execution Contract](EXECUTION_CONTRACT.zh-TW.md)；完整 threat boundaries 與 gates 定義於 [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.zh-TW.md)。
