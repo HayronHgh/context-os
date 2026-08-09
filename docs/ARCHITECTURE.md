@@ -50,16 +50,23 @@ flowchart TD
 
 ### Context manager (`src/context-manager.js`)
 
-- Estimates prompt utilization.
-- Prunes stale tool output while keeping protocol structure intact.
+- Estimates utilization from messages, tool schemas, tool choice, and fixed safety overhead.
+- Compresses stale output, then prunes complete old tool exchanges while keeping protocol structure intact.
 - Selects complete user-turn boundaries for compaction.
-- Inserts structured Coding State Transfer into rebuilt context.
+- Inserts schema-validated, derived Coding State Transfer into rebuilt context.
 - Stops if the resulting prompt remains above the failure threshold.
+
+### State-transfer validator (`src/state-transfer.js`)
+
+- Requires every continuation-state field and its expected type.
+- Rejects malformed JSON, missing fields, wrong types, and unexpected fields.
+- Supports a single model retry before compaction fails without replacing history.
 
 ### Tool runner (`src/tools.js`)
 
 - Implements file reads, globbing, grep, writes, edits, commands, repository maps, memory access, and episodes.
-- Resolves file paths against the selected project root.
+- Checks both lexical and real filesystem paths against the selected project root.
+- Rejects file, directory-symlink, and Windows-junction escapes for reads, writes, and edits.
 - Requests approval for writes, edits, and commands.
 - Rejects a small set of known destructive command patterns.
 

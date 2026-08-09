@@ -14,7 +14,9 @@ Model output is untrusted input. Tool names and JSON arguments are parsed and ro
 
 ### File tools
 
-File paths are resolved against the selected project root. Paths that escape that root are rejected, and directory traversal does not follow symbolic links.
+File paths first pass lexical project-root containment. Every existing path component is then resolved through the filesystem and checked against the real project root. Reads, writes, and edits reject escapes through symbolic-link files, symbolic-link directories, and Windows junctions; new targets are checked through their nearest existing parent.
+
+This is defense in depth, not a race-free OS sandbox. A hostile process that can replace path components concurrently may still create time-of-check/time-of-use risk.
 
 This containment applies to ContextOS file tools. It does not constrain arbitrary paths embedded in an approved shell command.
 

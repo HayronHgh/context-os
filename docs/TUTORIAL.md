@@ -78,6 +78,7 @@ The default profile uses:
 ```text
 64K server context
 12K reserved output
+512-token fixed prompt safety margin
 8K maximum completion per model call
 4K server reasoning budget
 20 maximum tool iterations per user turn
@@ -205,4 +206,4 @@ Optionally add `-MmprojFile projector.gguf`.
 node --test
 ```
 
-Tests cover compaction boundaries, stale tool pruning, persistent-memory reload, project path containment, and destructive-command denial.
+The 22 invariant tests cover tool-schema budgeting, distinct compaction thresholds, tool-call boundaries, validated state transfer and fail-loud retry, symlink/junction containment, memory corruption behavior, artifact retention, and destructive-command denial. A file-symlink test is skipped only when the host denies symlink creation.

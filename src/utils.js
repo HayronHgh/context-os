@@ -54,9 +54,8 @@ export function truncateMiddle(text, maximum, marker = "\n...[middle omitted]...
 }
 
 export function isSubpath(root, candidate) {
-  const normalizedRoot = path.resolve(root).toLowerCase();
-  const normalizedCandidate = path.resolve(candidate).toLowerCase();
-  return normalizedCandidate === normalizedRoot || normalizedCandidate.startsWith(`${normalizedRoot}${path.sep}`);
+  const relative = path.relative(path.resolve(root), path.resolve(candidate));
+  return relative === "" || (relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
 }
 
 export function estimateTokens(value) {

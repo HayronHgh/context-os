@@ -51,10 +51,10 @@ Runtime 沒有綁死特定模型名稱，但 backend 必須回傳 OpenAI-style c
 - 結構化 episodic memory
 - Repository file/symbol map
 - Tool output artifact 外部化
-- 五段式 context budget 與壓縮策略
-- 使用 Coding State Transfer，而不是普通摘要
+- 將 tool schema 納入預算的五段式 context budget 與壓縮策略
+- 使用經 schema 驗證的 Coding State Transfer，而不是普通摘要
 - OpenAI-compatible tool-calling loop
-- File tools 的 project-root 路徑限制
+- File tools 依 real path 檢查的 project-root 路徑限制
 - 寫檔、編輯與 shell command 人工確認
 - 破壞性命令 guardrails
 - Windows setup、啟停、診斷與可續傳模型下載
@@ -183,14 +183,14 @@ get_datetime
 
 ## Context 策略
 
-有效 input budget 為 `contextWindow - reservedOutputTokens`。
+有效 input budget 為 `contextWindow - reservedOutputTokens`。使用率會計入 messages、完整 tool definitions、`tool_choice`，以及可設定的 chat-template 固定安全餘量。
 
 | 使用率 | 行為 |
 | ---: | --- |
-| 55% | 清理過期 tool output |
-| 65% | Prune 過期 conversation 結果 |
-| 72% | 產生結構化 Coding State Transfer |
-| 80% | 強制 hard state transfer |
+| 55% | 壓縮過期且過大的 tool output |
+| 65% | 移除完整的過期 tool-call/result exchanges |
+| 72% | 將舊 turns 壓縮為結構化 Coding State Transfer |
+| 80% | 強制 transfer，只保留最新 user work window |
 | 90% | 停止，避免靜默遺失狀態 |
 
 即使 prompt 中的工具結果被縮短，完整輸出仍保留在 `.qwen-agent/artifacts/`。
@@ -231,7 +231,7 @@ ContextOS 不打算成為完整 IDE，也不是另一個通用 coding assistant�
 ## Roadmap
 
 - Metrics 與 Context Recovery Benchmark
-- Schema-validated state extraction
+- 接近門檻時的 tokenizer 精確計數與 estimator calibration
 - Session replay 與 state diff
 - tree-sitter/LSP repository intelligence
 - SQLite FTS5/BM25 retrieval
