@@ -2,13 +2,13 @@
 
 繁體中文 · [English](TECHNICAL_REPORT.md)
 
-版本：0.2.0-dev.2
+版本：0.2.0-dev.3
 
 狀態：Experimental Research MVP
 
 ## 範圍
 
-ContextOS 實作本機 coding agent 外部 Context Runtime 已凍結的前兩個階段，以及 Phase 3 的 observational foundation：
+ContextOS 實作本機 coding agent 外部 Context Runtime 已凍結的前兩個階段，以及 Phase 3 的 observational／authorization foundation：
 
 - OpenAI-compatible 本機模型的 Coordinator loop
 - Runtime 管理的檔案、搜尋、命令、狀態與 episode tools
@@ -134,4 +134,4 @@ v0.1.2 凍結 deterministic Phase 1/2 baseline。後續 0.1.x 只處理 critical
 
 v0.2.0 保留給 **Adaptive Semantic Context Planning**：token pressure 決定何時可能需要 intervention，task semantics 提議什麼重要，凍結的 runtime invariants 決定哪些 action 合法。第一個 benchmark 應比較 threshold、pure semantic 與 hybrid planners，不能改動 v0.1.2 control group。
 
-`0.2.0-dev.1` 完成 M0 與 M1 的 observational 部分；`0.2.0-dev.2` 完成 M2：inventory snapshot 具有 canonical identity、CompactionPlan 使用 strict proposal-only schema、未提到的 unit 預設 KEEP，FakePlanner 不使用模型即可測試 protocol。沒有任何 plan 被授權或執行，Qwen 仍未連接。實作契約記錄於 [CompactionPlan Protocol](COMPACTION_PLAN_PROTOCOL.zh-TW.md)；完整 threat boundaries、metrics 與 M0-M5 gates 定義於 [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.zh-TW.md)。
+`0.2.0-dev.1` 完成 M0 與 M1 的 observational 部分；`0.2.0-dev.2` 完成 strict M2 proposal protocol；`0.2.0-dev.3` 完成 M3 deterministic Runtime-owned protection、authority、recoverability、transitive dependency 與 potential-reduction authorization。它輸出獨立 `ValidatedPlan` 並在 transformation／execution 前停止；Qwen 仍未連接。實作契約記錄於 [CompactionPlan Protocol](COMPACTION_PLAN_PROTOCOL.zh-TW.md) 與 [Compaction Authorization](COMPACTION_VALIDATION.zh-TW.md)；完整 threat boundaries、metrics 與 M0-M5 gates 定義於 [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.zh-TW.md)。

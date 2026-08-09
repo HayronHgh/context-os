@@ -4,6 +4,19 @@
 
 所有重要變更都會記錄於此。
 
+## [0.2.0-dev.3] - 2026-08-09
+
+### Runtime plan authorization
+
+- 新增 deterministic、model-free Runtime Validator，將不可信 `CompactionPlan` 轉為獨立 `ValidatedPlan`，並在 execution 前停止。
+- 將 protection、authority 與 recoverability policy 資料化，包括 durable exact-enough recovery predicates。
+- Authorization 前先驗證 `depends_on` target 與 cycle，再強制 direct／transitive post-action availability。
+- `PROMOTE_PROPOSAL` 維持 audit-only，不修改 memory、lifecycle、authority、context 或 artifact。
+- 只回報 Runtime 推導的 potential reduction upper bound；execution 前 `actualReductionTokens` 固定為 null。
+- 區分 definitely insufficient authorization、potentially sufficient authorization 與 rejected plan，並提供 deterministic fallback。
+- 拒絕 invalid compression target，保留 rejected proposal 與 machine-readable reason code。
+- 新增 policy、graph、token accounting、M2 regression、no-side-effect tests 與雙語 validation 文件。
+
 ## [0.2.0-dev.2] - 2026-08-09
 
 ### Strict CompactionPlan protocol
