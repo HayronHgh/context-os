@@ -38,6 +38,11 @@ It does not yet implement AST/LSP graphs, semantic retrieval, a transactional me
 | `src/compaction-plan.js` | Strict proposal schema/parser, snapshot binding, implicit KEEP expansion |
 | `src/planners/planner.js` | Model-independent asynchronous Planner contract |
 | `src/planners/fake-planner.js` | Fixture-backed Planner test double with cloned I/O and call capture |
+| `src/recovery-verifier.js` | Current-source recovery proof providers |
+| `src/execution-preflight.js` | Strict ValidatedPlan-to-ExecutablePlan admission gate |
+| `src/transformation-candidate.js` | Candidate schema, digests, deterministic action mapping |
+| `src/context-transformer.js` | Whole-plan zero-mutation transformation orchestration |
+| `src/qwen-transformer.js` | Isolated bounded transformer-v1 COMPRESS generation |
 | `src/context-manager.js` | Budget, pruning, structured compaction |
 | `src/llama-client.js` | OpenAI-compatible HTTP client |
 | `src/memory-store.js` | JSON, JSONL, Markdown, episodes, artifacts |
@@ -134,4 +139,4 @@ v0.1.2 freezes the deterministic Phase 1/2 baseline. Future 0.1.x changes are li
 
 v0.2.0 is reserved for **Adaptive Semantic Context Planning**: token pressure decides when intervention may be needed, task semantics proposes what matters, and frozen runtime invariants decide which actions are legal. The first benchmark should compare threshold, pure semantic, and hybrid planners without changing the v0.1.2 control group.
 
-`0.2.0-dev.1` completed M0/M1, `0.2.0-dev.2` the strict proposal protocol, `0.2.0-dev.3` deterministic Runtime authorization, and `0.2.0-dev.4` bounded Qwen proposal generation. Dev.5 D0-D2 now adds current-source recovery proof and a strict zero-mutation `ValidatedPlan` to `ExecutablePlan` preflight boundary. The M4 experiment identity is hash-pinned; transformation, candidate validation, execution, mutation, inventory rebuild, and actual reduction remain absent. The contracts are documented in [CompactionPlan Protocol](COMPACTION_PLAN_PROTOCOL.md), [Compaction Authorization](COMPACTION_VALIDATION.md), [Bounded Semantic Planning](BOUNDED_SEMANTIC_PLANNING.md), and [Execution Contract](EXECUTION_CONTRACT.md); the complete threat boundaries and gates are specified in [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.md).
+`0.2.0-dev.1` completed M0/M1, `0.2.0-dev.2` the strict proposal protocol, `0.2.0-dev.3` deterministic Runtime authorization, and `0.2.0-dev.4` bounded Qwen proposal generation. Dev.5 D0-D3 now adds current-source recovery proof, strict `ValidatedPlan` to `ExecutablePlan` preflight, and immutable zero-mutation `TransformationCandidate` generation. Non-COMPRESS actions are deterministic; COMPRESS alone uses isolated `transformer-v1`, while Runtime owns all metadata, hashes, and estimates. The M4 experiment identity remains hash-pinned; candidate validation, execution, mutation, inventory rebuild, and actual reduction remain absent. The contracts are documented in [CompactionPlan Protocol](COMPACTION_PLAN_PROTOCOL.md), [Compaction Authorization](COMPACTION_VALIDATION.md), [Bounded Semantic Planning](BOUNDED_SEMANTIC_PLANNING.md), and [Execution Contract](EXECUTION_CONTRACT.md); the complete threat boundaries and gates are specified in [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.md).

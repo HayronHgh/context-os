@@ -33,9 +33,9 @@ Prompt Context   = 可拋棄的工作視圖
 
 ## 目前狀態
 
-**Experimental · v0.2.0-dev.5 D0-D2 Execution Preflight · Windows-first**
+**Experimental · v0.2.0-dev.5 D0-D3 Transformation Candidates · Windows-first**
 
-Deterministic 控制組仍凍結在 [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2)，M4 experiment inputs 則固定於 `aa59f4d`。v0.2 開發線現在新增 strict zero-mutation execution preflight：重新驗證 current recovery source，成功後才可產生 distinct、immutable `ExecutablePlan`。Transformation、execution、context mutation、artifact creation 與 memory promotion 仍不存在。
+Deterministic 控制組仍凍結在 [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2)，M4 experiment inputs 則固定於 `aa59f4d`。v0.2 開發線目前已能產生 immutable、zero-mutation `TransformationCandidate`：KEEP、PROMOTE_PROPOSAL、EVICT、EXTERNALIZE 由 Runtime deterministic mapping，只有 COMPRESS 使用 isolated `transformer-v1`。Post-transform acceptance、execution、context mutation、artifact creation 與 memory promotion 仍不存在。
 
 已驗證環境：
 
@@ -72,6 +72,9 @@ Runtime 沒有綁死特定模型名稱，但 backend 必須回傳 OpenAI-style c
 - 覆蓋 planner-v1、Planner input／budgets、M2、M3 與 Planner metrics 的 M4 freeze manifest
 - Read-only artifact、repository、memory 與 rebuildable recovery-source verification
 - Strict `ValidatedPlan` admission gate 與 distinct、deep-frozen `ExecutablePlan`
+- Runtime-owned source／candidate SHA-256 binding 與 deterministic non-COMPRESS candidates
+- 使用一次 schema-only repair、無 tools 的 isolated `transformer-v1` COMPRESS generation
+- 不具 execution authority 的 whole-plan immutable `TransformationCandidate`
 - File 與 artifact tools 依 real path 檢查的 project-root 路徑限制
 - 寫檔、編輯與 shell command 人工確認
 - 破壞性命令 guardrails

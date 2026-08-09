@@ -1,4 +1,5 @@
 import { normalizePlannerConfig } from "./planners/planner-input.js";
+import { normalizeTransformerConfig } from "./qwen-transformer.js";
 
 const DURABILITY_DEFAULTS = {
   artifactPersistenceChars: 800,
@@ -11,7 +12,8 @@ export function normalizeAgentConfig(config = {}) {
   const normalized = {
     ...DURABILITY_DEFAULTS,
     ...config,
-    planner: normalizePlannerConfig(config.planner)
+    planner: normalizePlannerConfig(config.planner),
+    transformer: normalizeTransformerConfig(config.transformer)
   };
   for (const field of Object.keys(DURABILITY_DEFAULTS)) {
     const value = normalized[field];

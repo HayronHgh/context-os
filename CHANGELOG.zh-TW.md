@@ -6,14 +6,18 @@
 
 ## [0.2.0-dev.5] - 2026-08-10
 
-### Zero-mutation execution preflight
+### Zero-mutation execution preparation
 
 - 固定 M4 `aa59f4d` experiment identity，並以測試鎖定 Planner、M2、M3、PAR／IPR 與 telemetry inputs。
 - 新增 read-only `RecoveryVerifier` providers，驗證 artifact integrity、repository containment／current hash、memory reference 與 registered rebuild mechanism。
 - 新增 strict `ValidatedPlan` admission checks：current inventory identity、完整 decision coverage、sufficient authorization 與 zero fallback。
 - 所有 required current-source proof 通過後，才產生 distinct、deep-frozen `ExecutablePlan`。
 - 以 `EXECUTION_PRECONDITION_FAILED` fail closed，不允許 partial execution，並提供 machine-readable recovery errors。
-- 新增雙語 D0-D2 contract；仍無 Transformer、candidate generation、post-transform validation、Executor、mutation、rebuild 或 actual re-tokenization。
+- 新增 whole-plan `ExecutablePlan -> TransformationCandidate` preparation，包含第二次 exact inventory binding gate，且不回傳 partial candidate。
+- KEEP、PROMOTE_PROPOSAL、EVICT、EXTERNALIZE 全部 deterministic mapping；canonical recovery marker 只由 Runtime recovery reference／proof 建立。
+- 只有 COMPRESS 使用 isolated、無 tools、bounded `transformer-v1`，strict output 僅含 `{ content }`，最多一次 schema-only repair。
+- Source／candidate SHA-256 digest 與 candidate token estimate 全由 Runtime 計算；超出 target 的 candidate 仍交由 D4 判斷。
+- 新增雙語 D0-D3 contract；仍無 post-transform validation、Executor、mutation、rebuild 或 actual re-tokenization。
 
 ## [0.2.0-dev.4] - 2026-08-10
 

@@ -4,7 +4,7 @@
 
 版本：`0.2.0-dev.5`
 
-狀態：D0 execution protocol、D1 RecoveryVerifier、D2 ExecutionPreflight 已實作；尚無 transformation 與 mutation。
+狀態：D0 execution protocol 至 D3 TransformationCandidate 已實作；尚無 post-transform validation 與 mutation。
 
 ## 目的
 
@@ -17,7 +17,7 @@ Execution Preflight
       ↓
 ExecutablePlan
       ↓
-Transformation Candidate       （未實作）
+Transformation Candidate
       ↓
 Post-transform Validation      （未實作）
       ↓
@@ -26,7 +26,7 @@ Atomic Execution               （未實作）
 ExecutionReport                （未實作）
 ```
 
-第一階段實作停在 `ExecutablePlan`，不 transform、也不 mutation context。
+目前實作停在 immutable `TransformationCandidate`；它只描述未來可能的變更，不驗證也不套用變更。
 
 ## 核心 invariants
 
@@ -47,7 +47,7 @@ COMPRESS authorization
 | M3 Validator | Policy 是否允許嘗試此 action？ |
 | RecoveryVerifier | Runtime recovery claim 此刻是否成立？ |
 | ExecutionPreflight | 完整 current plan 是否可繼續？ |
-| Future Transformer | 哪個 candidate output 可能符合 authorized action？ |
+| Transformer | 哪個 candidate output 可能符合 authorized action？ |
 | Future post-transform Validator | Candidate 是否安全到可 commit？ |
 | Future Executor | 已驗證 candidate 能否 atomic apply？ |
 
@@ -177,6 +177,59 @@ interface ExecutablePlan {
 
 它不包含 replacement content、transformed messages、artifact write、memory write、mutation callback，或超出 named decisions 的 execution authority。
 
+## D3 TransformationCandidate
+
+`prepareTransformation()` 在任何 model call 前再次檢查 exact inventory identity，要求每個 bound unit 都具有 current Runtime content，並為每個 `ExecutablePlan` decision 產生恰好一個 immutable candidate decision。Stale identity、incomplete inventory、invalid plan、deterministic mapping error 或 COMPRESS generation failure，都會使整份 preparation 失敗；不回傳 partial candidate。
+
+Action mapping 完全由 Runtime 固定：
+
+| Action | Candidate operation | Model call |
+| --- | --- | --- |
+| `KEEP` | `NOOP` | 否 |
+| `PROMOTE_PROPOSAL` | `AUDIT_ONLY` | 否 |
+| `EVICT` | `REMOVE` | 否 |
+| `EXTERNALIZE` | `REPLACE` canonical recovery marker | 否 |
+| `COMPRESS` | `REPLACE` semantic candidate content | 是 |
+
+`REMOVE` 與 `REPLACE` 只描述未來可能的 transformation，不會修改 active context。EXTERNALIZE marker 是由 current unit recovery reference 與已驗證的 D2 proof 產生的 canonical Runtime output；模型無法建立或修改 recovery metadata。
+
+只有 COMPRESS 進入獨立版本的 `transformer-v1`。Payload 只包含 schema version、unit ID、kind、authority、target token request 與 source content。Isolated request 不提供 tools、關閉 thinking、使用獨立 input／output budgets 與 low temperature，且 strict JSON 只能有一個 field：
+
+```json
+{"content":"compressed candidate"}
+```
+
+Malformed JSON、schema violation 與 empty output 最多取得一次 schema-only correction。Transport failure、budget failure 或 repeated invalid output 會使整份 plan 失敗。Candidate size 在 D3 不是 error；target 與 safety acceptance 屬於 D4。
+
+完整 source content 與每個 replacement candidate 的 SHA-256 都由 Runtime 計算，模型不提供 hash。這些 binding 讓 D4／D5 可以證明 reviewed content 就是之後準備 commit 的 content。
+
+```ts
+interface TransformationCandidate {
+  schemaVersion: 1;
+  candidateId: string;
+  sourceExecutablePlanId: string;
+  inventory: InventoryIdentity;
+  status: "PREPARED";
+  decisions: Array<{
+    unitId: string;
+    action: CompactionAction;
+    operation: "NOOP" | "REMOVE" | "REPLACE" | "AUDIT_ONLY";
+    sourceContentDigest: `sha256:${string}`;
+    candidateContent: string | null;
+    candidateContentDigest: `sha256:${string}` | null;
+    requestedTargetTokens: number | null;
+    candidateEstimatedTokens: number | null;
+  }>;
+  runtime: {
+    generatedAt: string;
+    zeroMutation: true;
+    actualReductionTokens: null;
+  };
+}
+```
+
+Failure 回傳 `TRANSFORMATION_FAILED` 或 `TRANSFORMATION_STALE_INVENTORY`、`candidate: null`、`zeroMutation: true`，且沒有 partial decision list。
+
 ## Failure result
 
 任一 gate failure 都回傳：
@@ -191,10 +244,8 @@ Preflight reason codes 包含 invalid shape、invalid／stale current inventory�
 
 ## Zero-mutation boundary
 
-D0-D2 明確排除：
+D0-D3 明確排除：
 
-- Transformer 或 model call；
-- TransformationCandidate 或 replacement content；
 - post-transform approval；
 - message 或 Context Unit mutation；
 - artifact、project-memory 或 episode write；
@@ -207,10 +258,9 @@ D0-D2 明確排除：
 ## 剩餘 dev.5 sequence
 
 ```text
-D3  Transformer -> TransformationCandidate
 D4  Post-transform Validator
 D5  Atomic Executor
 D6  Inventory rebuild + actual re-tokenization + ExecutionReport
 ```
 
-D3 必須只定義 candidate schema，不提供 write authority；D4 必須獨立驗證 candidate output；D5 才是第一個可 mutation active context 的 stage。
+D4 必須獨立驗證 candidate output，包括 semantic preservation 與 target acceptance；D5 才是第一個可 mutation active context 的 stage。

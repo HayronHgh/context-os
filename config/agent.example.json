@@ -22,6 +22,12 @@
     "temperature": 0.1,
     "maxAttempts": 2
   },
+  "transformer": {
+    "maxInputTokens": 12000,
+    "maxOutputTokens": 2048,
+    "temperature": 0.1,
+    "maxAttempts": 2
+  },
   "thresholds": {
     "garbageCollect": 0.55,
     "prune": 0.65,

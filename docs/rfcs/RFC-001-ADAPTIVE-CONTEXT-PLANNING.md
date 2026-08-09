@@ -322,7 +322,7 @@ Semantic Planner healthy?
 
 Semantic intelligence must be allowed to fail while ContextOS continues to work safely.
 
-## M5: Validated Transformation and Execution — D0-D2 implemented
+## M5: Validated Transformation and Execution — D0-D3 implemented
 
 M3 authorization proves policy eligibility, not current recovery-source existence. Dev.5 adds another permission boundary:
 
@@ -330,13 +330,15 @@ M3 authorization proves policy eligibility, not current recovery-source existenc
 ValidatedPlan
   -> Execution Preflight
   -> ExecutablePlan
-  -> TransformationCandidate       (D3, not implemented)
+  -> TransformationCandidate
   -> post-transform validation     (D4, not implemented)
   -> atomic execution              (D5, not implemented)
   -> inventory rebuild/re-tokenize (D6, not implemented)
 ```
 
-D0-D2 are zero-mutation. A strict preflight admits only current, potentially sufficient, non-fallback ValidatedPlans with complete inventory coverage. Artifact recovery requires existence and integrity, repository recovery requires a contained valid current source/path, memory recovery requires referenced state, and rebuildable recovery requires an available mechanism. Any failure returns `EXECUTION_PRECONDITION_FAILED` and no `ExecutablePlan`.
+D0-D3 are zero-mutation. A strict preflight admits only current, potentially sufficient, non-fallback ValidatedPlans with complete inventory coverage. Artifact recovery requires existence and integrity, repository recovery requires a contained valid current source/path, memory recovery requires referenced state, and rebuildable recovery requires an available mechanism. Any failure returns `EXECUTION_PRECONDITION_FAILED` and no `ExecutablePlan`.
+
+D3 rechecks inventory identity and concretizes every executable action without changing Runtime state. KEEP/PROMOTE_PROPOSAL become NOOP/AUDIT_ONLY, EVICT becomes descriptive REMOVE, and EXTERNALIZE receives a deterministic recovery marker. Only COMPRESS uses isolated `transformer-v1`; Runtime computes source/candidate digests and token estimates, while D4 retains sole authority to judge semantic preservation or target compliance. One failure rejects the whole candidate.
 
 `ValidatedPlan != ExecutablePlan`; recoverability classification is not recovery proof; COMPRESS permission does not authorize arbitrary replacement content. The exact contract and frozen M4 manifest are documented in [Validated Transformation and Execution Contract](../EXECUTION_CONTRACT.md).
 
@@ -372,10 +374,10 @@ Metrics are reported separately. SCU is a convenience composite, not a replaceme
 | M2 | Planner protocol | Strict schema and fake-plan fixtures |
 | M3 | Runtime Validator | Proposal is never permission; fail-closed tests |
 | M4 | Qwen Planner | Bounded inventory, strict output, fallback |
-| M5 | Validated Transformation/Execution | D0-D2 recovery preflight implemented; D3-D6 candidate validation and abort-safe execution pending |
+| M5 | Validated Transformation/Execution | D0-D3 candidate preparation implemented; D4-D6 validation and abort-safe execution pending |
 | RC | A/B/C benchmark | Same control envelope; publish raw results |
 
-M0/M1 shipped in `0.2.0-dev.1`, M2 in `0.2.0-dev.2`, M3 in `0.2.0-dev.3`, bounded proposal generation in `0.2.0-dev.4`, and zero-mutation execution preflight in the first `0.2.0-dev.5` boundary. Each remains independently reviewable. Dev.1–dev.5 D0-D2 do not execute semantic plans.
+M0/M1 shipped in `0.2.0-dev.1`, M2 in `0.2.0-dev.2`, M3 in `0.2.0-dev.3`, bounded proposal generation in `0.2.0-dev.4`, and zero-mutation execution preparation through D3 in `0.2.0-dev.5`. Each remains independently reviewable. Dev.1–dev.5 D0-D3 do not execute semantic plans.
 
 ## Consequences
 

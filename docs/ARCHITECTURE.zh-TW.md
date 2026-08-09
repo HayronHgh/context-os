@@ -119,6 +119,12 @@ Dev.5 D0-D2 在 `ValidatedPlan` 與 execution 之間新增 read-only boundary。
 
 只有成功的 preflight 才回傳 distinct、deep-frozen `ExecutablePlan`。它包含 decisions 與 recovery proofs，但沒有 replacement content、mutation callback、write authority 或 actual-reduction claim。`config/m4-freeze.json` 固定 immutable M4 experiment inputs。詳見 [Validated Transformation and Execution Contract](EXECUTION_CONTRACT.zh-TW.md)。
 
+### Transformation candidates（`src/transformation-candidate.js`、`src/context-transformer.js`、`src/qwen-transformer.js`）
+
+D3 再次檢查 exact inventory identity，以 Runtime 計算的 source-content SHA-256 綁定每個 decision，並為每個 executable decision 產生一個 immutable candidate。KEEP 與 PROMOTE_PROPOSAL 維持 NOOP／AUDIT_ONLY；EVICT 成為描述性的 REMOVE；EXTERNALIZE 使用 canonical Runtime recovery marker。只有 COMPRESS 呼叫 isolated、無 tools 的 `transformer-v1`，其 strict output 只有 candidate content，不含 metadata。
+
+Model output 回來後，Runtime 才計算 candidate SHA-256 與 token estimate。Candidate 超出 target 會保留給 D4，不由 D3 retry 或 reject。Stale inventory 或任一 candidate generation failure 都會拒絕整份 preparation；messages、inventory、lifecycle、artifacts 與 memory 完全不 mutation。
+
 ### Context Manager（`src/context-manager.js`）
 
 - 由 messages、tool schemas、tool choice 與固定安全餘量估算 prompt 使用率。

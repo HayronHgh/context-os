@@ -119,6 +119,12 @@ Dev.5 D0-D2 adds a read-only boundary between `ValidatedPlan` and execution. A s
 
 Only successful preflight returns a distinct deep-frozen `ExecutablePlan`. It contains decisions and recovery proofs but no replacement content, mutation callback, write authority, or actual-reduction claim. `config/m4-freeze.json` pins the immutable M4 experiment inputs. See [Validated Transformation and Execution Contract](EXECUTION_CONTRACT.md).
 
+### Transformation candidates (`src/transformation-candidate.js`, `src/context-transformer.js`, `src/qwen-transformer.js`)
+
+D3 rechecks exact inventory identity, binds every decision to a Runtime-computed source-content SHA-256, and emits one immutable candidate per executable decision. KEEP and PROMOTE_PROPOSAL remain NOOP/AUDIT_ONLY; EVICT becomes a descriptive REMOVE; EXTERNALIZE gets a canonical Runtime recovery marker. Only COMPRESS invokes the isolated, tool-free `transformer-v1`, whose strict output contains candidate content and no metadata.
+
+Runtime computes candidate SHA-256 and token estimates after model output. Candidate target overshoot is retained for D4, not retried or rejected by D3. Any stale inventory or one candidate-generation failure rejects the whole preparation. No messages, inventory, lifecycle, artifacts, or memory are mutated.
+
 ### Context manager (`src/context-manager.js`)
 
 - Estimates utilization from messages, tool schemas, tool choice, and fixed safety overhead.

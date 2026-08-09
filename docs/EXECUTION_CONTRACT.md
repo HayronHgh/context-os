@@ -4,7 +4,7 @@
 
 Version: `0.2.0-dev.5`
 
-Status: D0 execution protocol, D1 RecoveryVerifier, and D2 ExecutionPreflight implemented. Transformation and mutation are absent.
+Status: D0 execution protocol through D3 TransformationCandidate implemented. Post-transform validation and mutation are absent.
 
 ## Purpose
 
@@ -17,7 +17,7 @@ Execution Preflight
       ↓
 ExecutablePlan
       ↓
-Transformation Candidate       (not implemented)
+Transformation Candidate
       ↓
 Post-transform Validation      (not implemented)
       ↓
@@ -26,7 +26,7 @@ Atomic Execution               (not implemented)
 ExecutionReport                (not implemented)
 ```
 
-The first implementation stops at `ExecutablePlan`. It does not transform or mutate context.
+The current implementation stops at an immutable `TransformationCandidate`. It describes future changes but does not validate or apply them.
 
 ## Core invariants
 
@@ -47,7 +47,7 @@ The layers answer different questions:
 | M3 Validator | May this action be attempted under policy? |
 | RecoveryVerifier | Is the Runtime recovery claim true now? |
 | ExecutionPreflight | Is the complete current plan eligible to proceed? |
-| Future Transformer | What candidate output could satisfy the authorized action? |
+| Transformer | What candidate output could satisfy the authorized action? |
 | Future post-transform Validator | Is that candidate safe to commit? |
 | Future Executor | Can the validated candidate be applied atomically? |
 
@@ -177,6 +177,59 @@ interface ExecutablePlan {
 
 It contains no replacement content, transformed messages, artifact writes, memory writes, mutation callback, or execution authority beyond the named decisions.
 
+## D3 TransformationCandidate
+
+`prepareTransformation()` performs a second exact inventory identity check before any model call, requires current Runtime content for every bound unit, and produces exactly one immutable candidate decision for every `ExecutablePlan` decision. Any stale identity, incomplete inventory, invalid plan, deterministic mapping error, or COMPRESS generation failure rejects the whole preparation. No partial candidate is returned.
+
+Action mapping is fixed by Runtime:
+
+| Action | Candidate operation | Model call |
+| --- | --- | --- |
+| `KEEP` | `NOOP` | no |
+| `PROMOTE_PROPOSAL` | `AUDIT_ONLY` | no |
+| `EVICT` | `REMOVE` | no |
+| `EXTERNALIZE` | `REPLACE` with canonical recovery marker | no |
+| `COMPRESS` | `REPLACE` with semantic candidate content | yes |
+
+`REMOVE` and `REPLACE` describe a possible future transformation; they do not mutate active context. EXTERNALIZE markers are canonical Runtime output derived from the current unit recovery reference and its verified D2 proof. The model cannot author or alter recovery metadata.
+
+Only COMPRESS enters the separately versioned `transformer-v1` path. Its payload contains only schema version, unit ID, kind, authority, target token request, and source content. The isolated request has no tools, disables thinking, uses independent input/output budgets and low temperature, and accepts strict JSON with exactly one field:
+
+```json
+{"content":"compressed candidate"}
+```
+
+Malformed JSON, schema violations, and empty output may receive one schema-only correction. Transport failure, budget failure, or repeated invalid output fails the whole plan. Candidate size is not an error in D3; D4 owns target and safety acceptance.
+
+Runtime, never the model, computes SHA-256 over the complete source content and every replacement candidate. These bindings let D4/D5 prove that the reviewed content is the content later committed.
+
+```ts
+interface TransformationCandidate {
+  schemaVersion: 1;
+  candidateId: string;
+  sourceExecutablePlanId: string;
+  inventory: InventoryIdentity;
+  status: "PREPARED";
+  decisions: Array<{
+    unitId: string;
+    action: CompactionAction;
+    operation: "NOOP" | "REMOVE" | "REPLACE" | "AUDIT_ONLY";
+    sourceContentDigest: `sha256:${string}`;
+    candidateContent: string | null;
+    candidateContentDigest: `sha256:${string}` | null;
+    requestedTargetTokens: number | null;
+    candidateEstimatedTokens: number | null;
+  }>;
+  runtime: {
+    generatedAt: string;
+    zeroMutation: true;
+    actualReductionTokens: null;
+  };
+}
+```
+
+Failure returns `TRANSFORMATION_FAILED` or `TRANSFORMATION_STALE_INVENTORY`, `candidate: null`, `zeroMutation: true`, and no partial decision list.
+
 ## Failure result
 
 Any gate failure returns:
@@ -191,10 +244,8 @@ Preflight reason codes include invalid shape, invalid or stale current inventory
 
 ## Zero-mutation boundary
 
-D0-D2 explicitly exclude:
+D0-D3 explicitly exclude:
 
-- Transformer or model calls;
-- TransformationCandidate or replacement content;
 - post-transform approval;
 - message or Context Unit mutation;
 - artifact, project-memory, or episode writes;
@@ -207,10 +258,9 @@ The implementation is read-only except for ordinary test fixtures created in tem
 ## Remaining dev.5 sequence
 
 ```text
-D3  Transformer -> TransformationCandidate
 D4  Post-transform Validator
 D5  Atomic Executor
 D6  Inventory rebuild + actual re-tokenization + ExecutionReport
 ```
 
-D3 must define candidate schemas without granting write authority. D4 must validate candidate output independently. D5 is the first stage permitted to mutate active context.
+D4 must validate candidate output independently, including semantic preservation and target acceptance. D5 is the first stage permitted to mutate active context.
