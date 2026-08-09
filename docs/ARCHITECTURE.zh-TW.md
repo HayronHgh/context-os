@@ -107,6 +107,12 @@ M3 將 bound proposal 轉成獨立 `ValidatedPlan`。Frozen Runtime-owned policy
 
 Validator 只計算 gross potential-reduction upper bound，`actualReductionTokens` 維持 null。它是 pure、model-free authorization boundary，並在 context mutation、transformation、artifact creation、memory write、Qwen call 或 deterministic policy change 前停止。詳見 [Compaction authorization](COMPACTION_VALIDATION.zh-TW.md)。
 
+### Bounded semantic Planner（`src/planners/`、`src/semantic-proposal.js`）
+
+M4 由 internal inventory snapshot 建立 Planner-specific view。Per-unit deterministic representation、visible-unit count、task text、model output 與完整 Planner request 都有 hard bound。無法容納全部 unit 時，protected、USER、active、dependency-root 與 unresolved unit 取得 deterministic priority；被排除的 unit 保持 implicit `KEEP`。
+
+`QwenPlanner` 使用 stateless OpenAI-compatible chat call，不提供 tools，套用 versioned `planner-v1` system prompt、low temperature、strict JSON 與最多一次 correction。Plan ID、inventory identity 與 visible-unit membership 驗證後，才呼叫未修改的 M3 Validator。Session audit 將 experimental attempts／results 與 semantic memory 分離。Validator rejection 直接停止並選擇 fallback，不會觸發 autonomous replanning。詳見 [Bounded semantic planning](BOUNDED_SEMANTIC_PLANNING.zh-TW.md)。
+
 ### Context Manager（`src/context-manager.js`）
 
 - 由 messages、tool schemas、tool choice 與固定安全餘量估算 prompt 使用率。

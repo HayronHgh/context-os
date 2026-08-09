@@ -107,6 +107,12 @@ M3 converts a bound proposal into a distinct `ValidatedPlan`. Frozen Runtime-own
 
 The Validator calculates only a gross potential-reduction upper bound and keeps `actualReductionTokens` null. It is a pure, model-free authorization boundary and stops before context mutation, transformation, artifact creation, memory writes, Qwen calls, or deterministic policy changes. See [Compaction authorization](COMPACTION_VALIDATION.md).
 
+### Bounded semantic Planner (`src/planners/`, `src/semantic-proposal.js`)
+
+M4 builds a Planner-specific view from an internal inventory snapshot. Per-unit deterministic representations, visible-unit count, task text, model output, and the complete Planner request all have hard bounds. When not every unit fits, protected, USER, active, dependency-root, and unresolved units receive deterministic priority; excluded units remain implicit `KEEP`.
+
+`QwenPlanner` uses a stateless OpenAI-compatible chat call with no tools, the versioned `planner-v1` system prompt, low temperature, strict JSON, and at most one correction attempt. Plan ID, inventory identity, and visible-unit membership are verified before the unchanged M3 Validator runs. Session audit records experimental attempts/results separately from semantic memory. Validator rejection stops and selects fallback; it never triggers autonomous replanning. See [Bounded semantic planning](BOUNDED_SEMANTIC_PLANNING.md).
+
 ### Context manager (`src/context-manager.js`)
 
 - Estimates utilization from messages, tool schemas, tool choice, and fixed safety overhead.

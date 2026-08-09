@@ -1,0 +1,97 @@
+{
+  "sessionId": "planner",
+  "units": [
+    {
+      "id": "cu_planner_000001",
+      "kind": "USER_REQUIREMENT",
+      "content": "Do not change the public API.",
+      "source": { "type": "message", "role": "user" },
+      "authority": "USER",
+      "createdAt": "2026-08-10T00:00:00.000Z",
+      "taskId": "planner-task",
+      "recoverability": "none",
+      "recoveryRef": null,
+      "protectedReasons": ["EXPLICIT_USER_CONSTRAINT"],
+      "dependencies": [],
+      "tokenCost": 100,
+      "lifecycle": "ACTIVE"
+    },
+    {
+      "id": "cu_planner_000002",
+      "kind": "USER_CONTEXT",
+      "content": "The current objective is to diagnose the refresh race without changing public behavior.",
+      "source": { "type": "message", "role": "user" },
+      "authority": "USER",
+      "createdAt": "2026-08-10T00:01:00.000Z",
+      "taskId": "planner-task",
+      "recoverability": "none",
+      "recoveryRef": null,
+      "protectedReasons": [],
+      "dependencies": [],
+      "tokenCost": 120,
+      "lifecycle": "ACTIVE"
+    },
+    {
+      "id": "cu_planner_000003",
+      "kind": "TOOL_EVIDENCE",
+      "content": "Durable evidence confirms duplicate refresh success. The complete command output is stored in an artifact and can be retrieved exactly.",
+      "source": { "type": "tool", "name": "run_command" },
+      "authority": "EVIDENCE",
+      "createdAt": "2026-08-10T00:02:00.000Z",
+      "taskId": "planner-task",
+      "recoverability": "artifact",
+      "recoveryRef": { "artifactId": "planner-artifact-1" },
+      "protectedReasons": [],
+      "dependencies": [],
+      "tokenCost": 2600,
+      "lifecycle": "ACTIVE"
+    },
+    {
+      "id": "cu_planner_000004",
+      "kind": "DECISION",
+      "content": "Reproduce first, then patch the smallest transaction boundary. This decision depends on the durable refresh-race evidence.",
+      "source": { "type": "runtime" },
+      "authority": "DERIVED",
+      "createdAt": "2026-08-10T00:03:00.000Z",
+      "taskId": "planner-task",
+      "recoverability": "memory",
+      "recoveryRef": null,
+      "protectedReasons": [],
+      "dependencies": [
+        { "unitId": "cu_planner_000003", "relation": "depends_on" }
+      ],
+      "tokenCost": 300,
+      "lifecycle": "ACTIVE"
+    },
+    {
+      "id": "cu_planner_000005",
+      "kind": "TOOL_EVIDENCE",
+      "content": "Rebuildable exploratory output that can be rerun but is not an exact durable record.",
+      "source": { "type": "tool", "name": "run_command" },
+      "authority": "EVIDENCE",
+      "createdAt": "2026-08-10T00:04:00.000Z",
+      "taskId": "planner-task",
+      "recoverability": "rebuildable",
+      "recoveryRef": null,
+      "protectedReasons": [],
+      "dependencies": [],
+      "tokenCost": 1800,
+      "lifecycle": "ACTIVE"
+    },
+    {
+      "id": "cu_planner_000006",
+      "kind": "HYPOTHESIS",
+      "content": "Earlier speculative reasoning suggested a cache expiry bug, but later evidence points to transaction overlap instead.",
+      "source": { "type": "model" },
+      "authority": "SPECULATIVE",
+      "createdAt": "2026-08-10T00:05:00.000Z",
+      "taskId": "planner-task",
+      "recoverability": "none",
+      "recoveryRef": null,
+      "protectedReasons": [],
+      "dependencies": [],
+      "tokenCost": 900,
+      "lifecycle": "ACTIVE"
+    }
+  ]
+}

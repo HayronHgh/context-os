@@ -302,13 +302,17 @@ Invalid plans fail closed and request deterministic fallback. Context mutation, 
 
 The exact `ValidatedPlan`, policy tables, dependency availability rules, accounting semantics, and purity guarantees are documented in [Compaction Authorization](../COMPACTION_VALIDATION.md).
 
-## M4: Qwen Semantic Planner
+## M4: Bounded Semantic Proposal Generation — implemented in 0.2.0-dev.4
 
-Only after schema and Validator tests pass will Qwen receive the bounded inventory. The Planner endpoint will use strict JSON, limited retries, low temperature, a fixed token budget, and audit logging. Planner output remains untrusted input.
+Qwen receives a dedicated `PlannerInventoryView`, never the raw Agent transcript. The view has global request, visible-unit, per-unit representation, task, and output bounds. Deterministic selection prioritizes protection, USER authority, active units, dependency roots, and unresolved state; hidden units remain implicit `KEEP`.
 
-## Hybrid operation and fallback
+The `planner-v1` prompt runs in an isolated tool-free request at fixed low temperature. Raw output passes through the existing strict CompactionPlan parser, an exact Runtime plan-ID challenge, inventory binding, and `visibleUnitIds` binding. Protocol, visibility, and transient client failures may receive one correction attempt. Stale inventory is discarded without retry. Validator rejection stops and requires fallback; M4 has no validator-aware replanning loop.
 
-v0.1.2 thresholds remain the intervention and fallback mechanism:
+Planner attempts and results are audit events in the session JSONL channel, not project memory. Metrics cover input/output tokens, latency, visibility, explicit/implicit decisions, parse attempts, authorization results, reason distributions, potential reduction, Proposal Authorization Rate, and Illegal Proposal Rate. Because M4 performs no execution, it does not claim actual reduction or report PILR/WIR/SCU. See [Bounded Semantic Proposal Generation](../BOUNDED_SEMANTIC_PLANNING.md).
+
+## Future hybrid operation and fallback
+
+M4 is an experimental proposal path and does not take over the `55/65/72/80` lifecycle. The future hybrid path will retain v0.1.2 thresholds as intervention and fallback:
 
 ```text
 Semantic Planner healthy?
@@ -318,7 +322,23 @@ Semantic Planner healthy?
 
 Semantic intelligence must be allowed to fail while ContextOS continues to work safely.
 
-## M5: benchmark design
+## M5: Validated Transformation and Execution — planned
+
+M3 authorization proves policy eligibility, not current recovery-source existence. Before any action, dev.5 must revalidate the selected source:
+
+```text
+ValidatedPlan
+  -> recovery source revalidation
+  -> transformation
+  -> post-transform validation
+  -> execution
+  -> inventory rebuild
+  -> re-tokenization
+```
+
+Artifact recovery requires existence and integrity, repository recovery requires a valid current source/path, memory recovery requires referenced state, and rebuildable recovery requires an available rebuild mechanism. Any failure aborts execution and selects deterministic fallback.
+
+## Release-candidate benchmark design
 
 The first comparison contains three variants under the same model, prompts, fixture, oracle, budgets, and invariants:
 
@@ -348,9 +368,10 @@ Metrics are reported separately. SCU is a convenience composite, not a replaceme
 | M2 | Planner protocol | Strict schema and fake-plan fixtures |
 | M3 | Runtime Validator | Proposal is never permission; fail-closed tests |
 | M4 | Qwen Planner | Bounded inventory, strict output, fallback |
-| M5 | A/B/C benchmark | Same control envelope; publish raw results |
+| M5 | Validated Transformer/Executor | Recovery revalidation, post-transform validation, abort-safe execution |
+| RC | A/B/C benchmark | Same control envelope; publish raw results |
 
-M0/M1 shipped in `0.2.0-dev.1`, M2 independently in `0.2.0-dev.2`, and M3 independently in `0.2.0-dev.3`, keeping protocol correctness and authorization correctness separately reviewable. None alters frozen deterministic context reduction or executes semantic plans.
+M0/M1 shipped in `0.2.0-dev.1`, M2 in `0.2.0-dev.2`, M3 in `0.2.0-dev.3`, and bounded proposal generation in `0.2.0-dev.4`. Each remains independently reviewable. Dev.1–dev.4 do not alter frozen deterministic context reduction or execute semantic plans.
 
 ## Consequences
 

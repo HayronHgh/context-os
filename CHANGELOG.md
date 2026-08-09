@@ -4,6 +4,19 @@
 
 All notable changes to this project will be documented here.
 
+## [0.2.0-dev.4] - 2026-08-10
+
+### Bounded semantic proposal generation
+
+- Add a deterministic globally bounded PlannerInventoryView with protected/USER/active/dependency/unresolved selection priority and implicit KEEP for hidden units.
+- Add the versioned `planner-v1` prompt and an isolated, tool-free `QwenPlanner` request with fixed temperature and token budgets.
+- Parse raw model output through the existing strict CompactionPlan protocol; enforce Runtime plan-ID challenge, inventory identity, and visible-only decisions.
+- Allow at most one protocol/visibility/client correction; discard stale inventories immediately and stop after Validator rejection.
+- Add proposal orchestration that ends at `ValidatedPlan`, with no Transformer, Executor, context mutation, artifact creation, or memory promotion.
+- Record per-attempt and cumulative Planner token/latency telemetry in session audit; separate protocol, binding, visibility, client, and stale failures; and calculate proposal authorization, illegal-proposal, violation, and decision metrics.
+- Add fake-client failure-mode tests, a six-unit synthetic fixture, bilingual planning documentation, and llama.cpp/Qwen smoke tooling.
+- Document the dev.5 recovery-source revalidation invariant before any future execution.
+
 ## [0.2.0-dev.3] - 2026-08-09
 
 ### Runtime plan authorization

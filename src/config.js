@@ -1,3 +1,5 @@
+import { normalizePlannerConfig } from "./planners/planner-input.js";
+
 const DURABILITY_DEFAULTS = {
   artifactPersistenceChars: 800,
   staleToolCompressionChars: 800,
@@ -6,7 +8,11 @@ const DURABILITY_DEFAULTS = {
 };
 
 export function normalizeAgentConfig(config = {}) {
-  const normalized = { ...DURABILITY_DEFAULTS, ...config };
+  const normalized = {
+    ...DURABILITY_DEFAULTS,
+    ...config,
+    planner: normalizePlannerConfig(config.planner)
+  };
   for (const field of Object.keys(DURABILITY_DEFAULTS)) {
     const value = normalized[field];
     if (!Number.isInteger(value) || value < 0) {

@@ -2,9 +2,9 @@
 
 [Traditional Chinese](COMPACTION_VALIDATION.zh-TW.md) · English
 
-Version: `0.2.0-dev.3`
+Version: `0.2.0-dev.4`
 
-Status: M3 Runtime Validator implemented; transformation and execution are absent.
+Status: M3 Runtime Validator remains frozen; M4 may call it, but transformation and execution are absent.
 
 ## Purpose
 
@@ -233,7 +233,7 @@ M3 explicitly does not provide:
 - artifact creation;
 - memory promotion or persistent writes;
 - lifecycle or authority changes;
-- Qwen Planner integration;
+- model calls inside the Validator (M4 invokes it only after strict proposal binding);
 - actual token-reduction measurement;
 - changes to the frozen deterministic `context-manager.js` policy.
 

@@ -2,9 +2,9 @@
 
 繁體中文 · [English](COMPACTION_PLAN_PROTOCOL.md)
 
-版本：`0.2.0-dev.3`
+版本：`0.2.0-dev.4`
 
-狀態：M2 protocol 與 M3 Runtime authorization 已實作；尚無 transformation 與 execution。
+狀態：M2 protocol、M3 Runtime authorization 與 M4 bounded proposal generation 已實作；尚無 transformation 與 execution。
 
 ## 目的
 
@@ -17,7 +17,7 @@ M2 CompactionPlan proposal
         ↓
 M3 Runtime Validator permission
         ↓
-M4 Qwen proposal generation（未實作）
+M4 bounded Qwen proposal generation
         ↓
 M5 transformation / execution（未實作）
 ```
@@ -174,6 +174,6 @@ M2 結束時流程停在：
 Inventory → FakePlanner → strict parser → binding check → expanded proposal → STOP
 ```
 
-本 milestone 不包含 `compaction-validator.js`、Qwen Planner、plan retry loop、token-reduction permission、context mutation、artifact creation 或 memory promotion。
+M2 本身沒有引入 `compaction-validator.js`、Qwen Planner、plan retry loop、token-reduction permission、context mutation、artifact creation 或 memory promotion；後續 milestone 仍是疊加於 frozen protocol 之上的獨立 layer。
 
-M3 authority matrix、dependency closure、fail-closed reason，以及 M4/M5 研究路線請見 [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.zh-TW.md)。
+Authority matrix、dependency closure、fail-closed reason，以及 M4/M5 研究路線請見 [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.zh-TW.md)。Semantic adapter 另見 [Bounded Semantic Planning](BOUNDED_SEMANTIC_PLANNING.zh-TW.md)。

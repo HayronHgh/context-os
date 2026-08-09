@@ -2,7 +2,7 @@
 
 [繁體中文](TECHNICAL_REPORT.zh-TW.md) · English
 
-Version: 0.2.0-dev.3
+Version: 0.2.0-dev.4
 
 Status: Experimental research MVP
 
@@ -134,4 +134,4 @@ v0.1.2 freezes the deterministic Phase 1/2 baseline. Future 0.1.x changes are li
 
 v0.2.0 is reserved for **Adaptive Semantic Context Planning**: token pressure decides when intervention may be needed, task semantics proposes what matters, and frozen runtime invariants decide which actions are legal. The first benchmark should compare threshold, pure semantic, and hybrid planners without changing the v0.1.2 control group.
 
-`0.2.0-dev.1` completed M0 and the observational portion of M1. `0.2.0-dev.2` completed the strict M2 proposal protocol. `0.2.0-dev.3` completes M3 with deterministic Runtime-owned protection, authority, recoverability, transitive dependency, and potential-reduction authorization. It emits a distinct `ValidatedPlan` and stops before transformation or execution; Qwen remains disconnected. The contracts are documented in [CompactionPlan Protocol](COMPACTION_PLAN_PROTOCOL.md) and [Compaction Authorization](COMPACTION_VALIDATION.md); the complete threat boundaries, metrics, and M0-M5 gates are specified in [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.md).
+`0.2.0-dev.1` completed M0/M1, `0.2.0-dev.2` the strict proposal protocol, and `0.2.0-dev.3` deterministic Runtime authorization. `0.2.0-dev.4` adds an isolated Qwen proposal path over a globally bounded PlannerInventoryView, strict visible-only binding, one correction attempt, deterministic fallback, session telemetry, and proposal-quality metrics. It still emits a `ValidatedPlan` and stops before transformation or execution. The contracts are documented in [CompactionPlan Protocol](COMPACTION_PLAN_PROTOCOL.md), [Compaction Authorization](COMPACTION_VALIDATION.md), and [Bounded Semantic Planning](BOUNDED_SEMANTIC_PLANNING.md); the complete threat boundaries and gates are specified in [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.md).

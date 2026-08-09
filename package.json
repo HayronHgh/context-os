@@ -1,12 +1,13 @@
 {
   "name": "context-os",
-  "version": "0.2.0-dev.3",
+  "version": "0.2.0-dev.4",
   "private": true,
   "description": "Persistent context and memory runtime for long-running local coding agents",
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
     "test": "node --test",
+    "test:m4:e2e": "node scripts/m4-e2e.mjs",
     "doctor": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/doctor.ps1",
     "setup": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/setup.ps1"
   },

@@ -302,13 +302,17 @@ Invalid plan 必須 fail closed 並要求 deterministic fallback。Context mutat
 
 精確 `ValidatedPlan`、policy tables、dependency availability rules、accounting semantics 與 purity guarantees 記錄於 [Compaction Authorization](../COMPACTION_VALIDATION.zh-TW.md)。
 
-## M4：Qwen Semantic Planner
+## M4：Bounded Semantic Proposal Generation — 已於 0.2.0-dev.4 實作
 
-Schema 與 Validator 測試通過後，Qwen 才能取得 bounded inventory。Planner endpoint 使用 strict JSON、有限 retry、低 temperature、固定 token budget 與 audit log；Planner output 永遠是不可信輸入。
+Qwen 取得專用 `PlannerInventoryView`，永遠不是 raw Agent transcript。此 view 對完整 request、visible-unit count、per-unit representation、task 與 output 都有 global hard bound。Deterministic selection 優先保護 protection、USER authority、active units、dependency roots 與 unresolved state；hidden units 維持 implicit `KEEP`。
 
-## Hybrid 與 fallback
+`planner-v1` prompt 在 isolated、無 tools request 中以 fixed low temperature 執行。Raw output 必須通過既有 strict CompactionPlan parser、exact Runtime plan-ID challenge、inventory binding 與 `visibleUnitIds` binding。Protocol、visibility 與 transient client failure 最多 correction 一次；stale inventory 不 retry 而直接 discard。Validator rejection 直接停止並要求 fallback；M4 沒有 validator-aware replanning loop。
 
-v0.1.2 thresholds 繼續負責 intervention 與 fallback：
+Planner attempt／result 寫入 session JSONL audit channel，不是 project memory。Metrics 包含 input/output tokens、latency、visibility、explicit/implicit decisions、parse attempts、authorization results、reason distributions、potential reduction、Proposal Authorization Rate 與 Illegal Proposal Rate。M4 沒有 execution，因此不宣稱 actual reduction，也不回報 PILR／WIR／SCU。詳見 [Bounded Semantic Proposal Generation](../BOUNDED_SEMANTIC_PLANNING.zh-TW.md)。
+
+## Future hybrid 與 fallback
+
+M4 是 experimental proposal path，不接管 `55/65/72/80` lifecycle。未來 hybrid path 會繼續以 v0.1.2 thresholds 負責 intervention 與 fallback：
 
 ```text
 Semantic Planner healthy?
@@ -318,7 +322,23 @@ Semantic Planner healthy?
 
 Semantic intelligence 必須允許故障，而 ContextOS 仍能安全工作。
 
-## M5：Benchmark
+## M5：Validated Transformation and Execution — 規劃中
+
+M3 authorization 證明 policy eligibility，不代表 recovery source 此刻仍存在。dev.5 執行任何 action 前必須重新驗證所選 source：
+
+```text
+ValidatedPlan
+  -> recovery source revalidation
+  -> transformation
+  -> post-transform validation
+  -> execution
+  -> inventory rebuild
+  -> re-tokenization
+```
+
+Artifact recovery 要求存在與 integrity；repository recovery 要求 current source/path valid；memory recovery 要求 referenced state 存在；rebuildable recovery 要求 rebuild mechanism 可用。任一 failure 都必須 abort execution 並選擇 deterministic fallback。
+
+## Release-candidate benchmark design
 
 第一輪只比較三組，且 model、prompt、fixture、oracle、budget 與 invariants 必須一致：
 
@@ -348,9 +368,10 @@ SCU  = CG * WIR
 | M2 | Planner protocol | Strict schema 與 fake-plan fixtures |
 | M3 | Runtime Validator | Proposal 不等於 permission；fail-closed tests |
 | M4 | Qwen Planner | Bounded inventory、strict output、fallback |
-| M5 | A/B/C benchmark | 相同 control envelope；公開 raw results |
+| M5 | Validated Transformer/Executor | Recovery revalidation、post-transform validation、abort-safe execution |
+| RC | A/B/C benchmark | 相同 control envelope；公開 raw results |
 
-M0/M1 於 `0.2.0-dev.1` 完成，M2 獨立於 `0.2.0-dev.2` 完成，M3 則獨立於 `0.2.0-dev.3` 完成，使 protocol correctness 與 authorization correctness 可以分開 review。三者都不修改 frozen deterministic context reduction，也不執行 semantic plan。
+M0/M1 於 `0.2.0-dev.1` 完成，M2 於 `0.2.0-dev.2`、M3 於 `0.2.0-dev.3`、bounded proposal generation 於 `0.2.0-dev.4` 完成，各自維持 independently reviewable。dev.1–dev.4 都不修改 frozen deterministic context reduction，也不執行 semantic plan。
 
 ## 影響
 
