@@ -33,7 +33,9 @@ Prompt Context   = 可拋棄的工作視圖
 
 ## 目前狀態
 
-**Experimental · v0.1.2 Phase 1/2 Core Freeze · Windows-first**
+**Experimental · v0.2.0-dev.1 M0/M1 · Windows-first**
+
+Deterministic 控制組仍凍結在 [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2)。目前 v0.2 開發線只加入 benchmark lock 與 observational Context Inventory；不修改 v0.1.2 pressure policy，也尚未接上 semantic Planner。
 
 已驗證環境：
 
@@ -57,6 +59,8 @@ Runtime 沒有綁死特定模型名稱，但 backend 必須回傳 OpenAI-style c
 - 將 tool schema 納入預算的五級 context pressure 策略
 - 使用經 schema 驗證的 Coding State Transfer，而不是普通摘要
 - OpenAI-compatible tool-calling loop
+- 使用 stable ID 的 Context Unit，明確記錄 authority、recoverability、protection、dependencies 與 lifecycle
+- 位於 model serialization boundary 後方的 bounded observational Context Inventory
 - File 與 artifact tools 依 real path 檢查的 project-root 路徑限制
 - 寫檔、編輯與 shell command 人工確認
 - 破壞性命令 guardrails
@@ -141,6 +145,7 @@ config/server.json
 | `/map` | 重建 repository map |
 | `/state` | 顯示 working state |
 | `/memory` | 顯示 project memory |
+| `/inventory` | 檢視目前 Context Unit inventory |
 | `/compact` | 強制 Coding State Transfer |
 | `/new` | 清除 conversation、保留持久狀態 |
 | `/project` | 顯示目前 project root |
@@ -253,6 +258,7 @@ v0.1.2 後，0.1.x 只接受 critical bug、security fix、regression 與 docume
 | [Security](docs/SECURITY.md) | [安全說明](docs/SECURITY.zh-TW.md) |
 | [Tutorial](docs/TUTORIAL.md) | [完整教程](docs/TUTORIAL.zh-TW.md) |
 | [Technical report](docs/TECHNICAL_REPORT.md) | [技術報告](docs/TECHNICAL_REPORT.zh-TW.md) |
+| [RFC-001: Adaptive Context Planning](docs/rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.md) | [RFC-001：自適應 Context Planning](docs/rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.zh-TW.md) |
 
 ## 開發
 

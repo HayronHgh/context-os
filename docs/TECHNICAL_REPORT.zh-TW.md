@@ -2,13 +2,13 @@
 
 繁體中文 · [English](TECHNICAL_REPORT.md)
 
-版本：0.1.2
+版本：0.2.0-dev.1
 
 狀態：Experimental Research MVP
 
 ## 範圍
 
-ContextOS 實作本機 coding agent 外部 Context Runtime 的前兩個階段：
+ContextOS 實作本機 coding agent 外部 Context Runtime 已凍結的前兩個階段，以及 Phase 3 的 observational foundation：
 
 - OpenAI-compatible 本機模型的 Coordinator loop
 - Runtime 管理的檔案、搜尋、命令、狀態與 episode tools
@@ -20,6 +20,8 @@ ContextOS 實作本機 coding agent 外部 Context Runtime 的前兩個階段：
 - durable tool-evidence envelopes 與具有 recovery gate 的 deterministic eviction
 - bounded artifact retrieval、integrity metadata 與 durability observability
 - Windows lifecycle 與 diagnostics scripts
+- frozen benchmark manifest 與 oracle-backed fixture
+- 經驗證的 stable-ID Context Unit 與 bounded observational Context Inventory
 
 尚未實作 AST/LSP graph、semantic retrieval、transactional memory database、多 Agent orchestration、自製 Web UI 或強 process sandbox。
 
@@ -31,6 +33,8 @@ ContextOS 實作本機 coding agent 外部 Context Runtime 的前兩個階段：
 | `src/agent-runtime.js` | Model/tool loop、prompt reconstruction、持久化 |
 | `src/config.js` | Durability defaults 與 startup invariants |
 | `src/context-messages.js` | Internal-to-model serialization boundary |
+| `src/context-unit.js` | Context Unit schema、enums、stable ID factory 與 validation |
+| `src/context-inventory.js` | Message inventory、Runtime protection、lifecycle 與 bounded Planner view |
 | `src/context-manager.js` | Budget、pruning、structured compaction |
 | `src/llama-client.js` | OpenAI-compatible HTTP client |
 | `src/memory-store.js` | JSON、JSONL、Markdown、episodes、artifacts |
@@ -126,3 +130,5 @@ v0.1.2 release candidate 已以 llama.cpp + Qwen3.6 完成端到端 recovery smo
 v0.1.2 凍結 deterministic Phase 1/2 baseline。後續 0.1.x 只處理 critical bug、security、regression 與 documentation correction。
 
 v0.2.0 保留給 **Adaptive Semantic Context Planning**：token pressure 決定何時可能需要 intervention，task semantics 提議什麼重要，凍結的 runtime invariants 決定哪些 action 合法。第一個 benchmark 應比較 threshold、pure semantic 與 hybrid planners，不能改動 v0.1.2 control group。
+
+目前 `0.2.0-dev.1` 完成 M0 與 M1 的 observational 部分。Context Unit metadata 保持 internal，`/inventory` 提供 bounded inspection view，而且尚未連接 Planner。完整 protocol、threat boundaries、metrics 與 M0-M5 gates 定義於 [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.zh-TW.md)。

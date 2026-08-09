@@ -33,7 +33,9 @@ The goal is simple: a conversation may be compacted or reset without killing the
 
 ## Status
 
-**Experimental · v0.1.2 Phase 1/2 core freeze · Windows-first**
+**Experimental · v0.2.0-dev.1 M0/M1 · Windows-first**
+
+The deterministic control remains frozen at [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2). The v0.2 development line currently adds benchmark locking and an observational Context Inventory only; it does not change the v0.1.2 pressure policy or connect a semantic Planner.
 
 Tested with:
 
@@ -57,6 +59,8 @@ The runtime is not tied to a specific model name, but the backend must return Op
 - Tool-schema-aware, five-level context pressure policy
 - Schema-validated Coding State Transfer instead of generic summaries
 - OpenAI-compatible tool-calling loop
+- Stable-ID Context Units with explicit authority, recoverability, protection, dependencies, and lifecycle
+- Bounded observational Context Inventory kept behind the model serialization boundary
 - Real-path-aware project-root containment for file and artifact tools
 - Approval prompts for writes, edits, and shell commands
 - Destructive-command guardrails
@@ -141,6 +145,7 @@ Stop the managed server with `03_stop_server.bat`.
 | `/map` | Rebuild the repository map |
 | `/state` | Show persistent working state |
 | `/memory` | Show project memory |
+| `/inventory` | Inspect the current Context Unit inventory |
 | `/compact` | Force Coding State Transfer |
 | `/new` | Reset conversation, retain persistent state |
 | `/project` | Show the active project root |
@@ -253,6 +258,7 @@ After v0.1.2, the 0.1.x line accepts only critical bugs, security fixes, regress
 | [Security](docs/SECURITY.md) | [安全說明](docs/SECURITY.zh-TW.md) |
 | [Tutorial](docs/TUTORIAL.md) | [完整教程](docs/TUTORIAL.zh-TW.md) |
 | [Technical report](docs/TECHNICAL_REPORT.md) | [技術報告](docs/TECHNICAL_REPORT.zh-TW.md) |
+| [RFC-001: Adaptive Context Planning](docs/rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.md) | [RFC-001：自適應 Context Planning](docs/rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.zh-TW.md) |
 
 ## Development
 

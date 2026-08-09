@@ -89,6 +89,12 @@ flowchart TD
 - 移除 `context_os` 與未來 runtime-only policy metadata。
 - 只保留本機 model server 需要的 protocol fields。
 
+### Context Unit 與 Inventory（`src/context-unit.js`、`src/context-inventory.js`）
+
+v0.2 開發線加入 observational semantic inventory。Context Unit 使用 session-scoped stable ID，明確區分 authority 與 recoverability，記錄 Runtime-owned protected reasons、typed dependencies、token cost 與 lifecycle。Inventory 只透過內部 `context_os` metadata 附加 identity，預設輸出 bounded summary，並可用 `/inventory` 檢查。
+
+M1 不授權任何 context action，也不修改 frozen pressure policy。它是未來 Planner 與 Validator 的結構化輸入邊界，詳見 [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.zh-TW.md)。
+
 ### Context Manager（`src/context-manager.js`）
 
 - 由 messages、tool schemas、tool choice 與固定安全餘量估算 prompt 使用率。

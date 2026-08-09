@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "name": "v0.1.2-frozen-deterministic",
+    "status": "frozen-control",
+    "tag": "v0.1.2",
+    "gitCommit": "ff2944581c7dd6200a170bc0bd94128e58ffd533",
+    "version": "0.1.2",
+    "frozenAt": "2026-08-09",
+    "mutationPolicy": "Only critical correctness, security, regression, and documentation fixes may enter the 0.1.x line. Benchmark results remain pinned to this tag."
+  },
+  "sourceFingerprints": {
+    "systemAndCompactionPromptsGitBlob": "af7ee5fa08b182c4a5b857b91733f4c0b399f1dc",
+    "contextManagerGitBlob": "db2b5922531f4fe5e54936bf81714ec2147a2aef",
+    "toolDefinitionsGitBlob": "ff3d9c70eea9d899dc35badf4302eb3e53ab1dbb",
+    "agentExampleConfigGitBlob": "2de249e9bf3a6dc87f42ec4b4bae03a73fb334db",
+    "serverExampleConfigGitBlob": "841a662668a49b5df780f3335ea4b53f0467f313"
+  },
+  "backend": {
+    "implementation": "llama.cpp",
+    "buildNumber": 10295,
+    "gitCommit": "3db4ff877",
+    "buildInfo": "b10295-3db4ff877",
+    "compiler": "Clang 20.1.8",
+    "target": "Windows x86_64",
+    "package": "win-cuda-13.3-x64",
+    "chatTemplateSha256": "e84f32a23fdda27689f868aa4a1a5621f41133e51a48d7f3efcbea2839574259"
+  },
+  "model": {
+    "alias": "qwen3.6-local",
+    "family": "Qwen3.6-35B-A3B",
+    "filename": "Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-IQ3_M.gguf",
+    "bytes": 15440519296,
+    "sha256": "4dd9a27c68bd778ede351a553680a1a6e4ec62e5d383b549892860ea337be0c0",
+    "reportedFileType": "IQ3_S mix - 3.66 bpw",
+    "visionProjectorEnabled": false
+  },
+  "serverConfig": {
+    "contextSize": 65536,
+    "predict": 16384,
+    "parallel": 1,
+    "gpuLayers": "auto",
+    "cacheTypeK": "q8_0",
+    "cacheTypeV": "q8_0",
+    "flashAttention": "on",
+    "fitTargetMiB": 3072,
+    "contextCheckpoints": 16,
+    "checkpointMinStep": 4096,
+    "cacheRamMiB": 2048,
+    "reasoningMode": "auto",
+    "reasoningBudget": 4096,
+    "cachePrompt": true,
+    "contextShift": false
+  },
+  "agentConfig": {
+    "contextWindow": 65536,
+    "reservedOutputTokens": 12288,
+    "maxOutputTokens": 8192,
+    "temperature": 0.2,
+    "thresholds": {
+      "garbageCollect": 0.55,
+      "prune": 0.65,
+      "semanticCompact": 0.72,
+      "hardTransfer": 0.8,
+      "failure": 0.9
+    }
+  },
+  "host": {
+    "operatingSystem": "Windows NT 10.0.26200.0",
+    "node": "v24.18.1",
+    "cpu": "AMD Ryzen 9 9900X 12-Core Processor",
+    "gpu": "NVIDIA GeForce RTX 5070 Ti",
+    "gpuMemoryMiB": 16303,
+    "nvidiaDriver": "610.88"
+  },
+  "benchmark": {
+    "fixture": "../fixtures/context-retention-001.json",
+    "fixtureSha256": "9f33d39186208424f597f7cedd9fd62c3d56956ac26a537acb6db668abd7c06e",
+    "variants": [
+      "deterministic",
+      "semantic",
+      "hybrid"
+    ],
+    "metrics": [
+      "compression_gain",
+      "weighted_information_retention",
+      "semantic_compression_utility",
+      "protected_information_loss_rate"
+    ]
+  }
+}

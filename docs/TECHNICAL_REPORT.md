@@ -2,13 +2,13 @@
 
 [繁體中文](TECHNICAL_REPORT.zh-TW.md) · English
 
-Version: 0.1.2
+Version: 0.2.0-dev.1
 
 Status: Experimental research MVP
 
 ## Scope
 
-ContextOS implements the first two phases of an external context runtime for local coding agents:
+ContextOS implements the frozen first two phases of an external context runtime for local coding agents and the observational foundation of Phase 3:
 
 - a coordinator loop over an OpenAI-compatible local model
 - runtime-managed file, search, command, state, and episode tools
@@ -20,6 +20,8 @@ ContextOS implements the first two phases of an external context runtime for loc
 - durable tool-evidence envelopes and recovery-gated deterministic eviction
 - bounded artifact retrieval, integrity metadata, and durability observability
 - Windows lifecycle and diagnostic scripts
+- frozen benchmark manifest and oracle-backed fixture
+- validated stable-ID Context Units and a bounded observational Context Inventory
 
 It does not yet implement AST/LSP graphs, semantic retrieval, a transactional memory database, multi-agent orchestration, a custom Web UI, or a strong process sandbox.
 
@@ -31,6 +33,8 @@ It does not yet implement AST/LSP graphs, semantic retrieval, a transactional me
 | `src/agent-runtime.js` | Model/tool loop, prompt reconstruction, persistence |
 | `src/config.js` | Durability defaults and startup invariants |
 | `src/context-messages.js` | Internal-to-model serialization boundary |
+| `src/context-unit.js` | Context Unit schema, enums, stable ID factory, validation |
+| `src/context-inventory.js` | Message inventory, runtime protection, lifecycle, bounded Planner view |
 | `src/context-manager.js` | Budget, pruning, structured compaction |
 | `src/llama-client.js` | OpenAI-compatible HTTP client |
 | `src/memory-store.js` | JSON, JSONL, Markdown, episodes, artifacts |
@@ -126,3 +130,5 @@ This remains a hypothesis until the planned benchmark measures task completion, 
 v0.1.2 freezes the deterministic Phase 1/2 baseline. Future 0.1.x changes are limited to critical bugs, security, regressions, and documentation corrections.
 
 v0.2.0 is reserved for **Adaptive Semantic Context Planning**: token pressure decides when intervention may be needed, task semantics proposes what matters, and frozen runtime invariants decide which actions are legal. The first benchmark should compare threshold, pure semantic, and hybrid planners without changing the v0.1.2 control group.
+
+The current `0.2.0-dev.1` scope completes M0 and the observational portion of M1. Context Unit metadata remains internal, `/inventory` exposes a bounded view for inspection, and no Planner is connected. The complete protocol, threat boundaries, metrics, and M0-M5 gates are specified in [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.md).

@@ -75,7 +75,9 @@ export class ToolEvidenceManager {
           durable: Boolean(artifact),
           artifactId: artifact?.id ?? null,
           recoveryType: artifact ? "artifact" : "context-only",
-          sha256: artifact?.sha256 ?? null
+          sha256: artifact?.sha256 ?? null,
+          resultStatus: result?.denied === true ? "denied" : result?.ok === false || result?.error ? "error" : "ok",
+          unitKind: name === "read_file" ? "FILE_SNAPSHOT" : "TOOL_EVIDENCE"
         }
       },
       prepared,
