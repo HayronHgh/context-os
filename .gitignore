@@ -1,10 +1,16 @@
 logs/
 runtime/
+node_modules/
+host-ui/
+patched-mcp-server/
 workspace/*
 !workspace/README.md
 workspace/.qwen-agent/
 config/agent.json
 config/server.json
+config/mcp.json
+config/llama-mcp.json
+config/bridge.json
 **/.qwen-agent/state.json
 **/.qwen-agent/repo-map.json
 **/.qwen-agent/episodes/

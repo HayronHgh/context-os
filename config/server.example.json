@@ -19,5 +19,6 @@
   "checkpointMinStep": 4096,
   "cacheRamMiB": 2048,
   "reasoning": "auto",
-  "reasoningBudget": 4096
+  "reasoningBudget": 4096,
+  "hostUiPath": "host-ui"
 }

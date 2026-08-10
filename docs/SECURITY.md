@@ -47,6 +47,14 @@ These controls are incomplete. Equivalent destructive actions can be expressed i
 
 Do not commit or synchronize it without review.
 
+### MCP capability server
+
+The MCP server is a local stdio child process, not a remote service. It advertises only read tools by default. Repository writes, state writes, map rebuilds, episodes, and commands are absent from that tool list.
+
+`trusted-local` is an explicit launch-time trust decision. Because stdio has no interactive approval channel, this mode enables non-interactive ToolRunner approval; containment, command denial, timeouts, and evidence handling still apply. `run_command` additionally remains disabled unless `security.allowCommands` is true. Do not treat a request as authorized merely because it came from llama.cpp or Qwen.
+
+ContextOS does not enable llama.cpp built-in tools, `--agent`, or the browser MCP CORS proxy. Enabling those separately creates capability paths outside ContextOS policy.
+
 ### Local HTTP server
 
 The example server binds to `127.0.0.1` and limits CORS to localhost. It does not configure an API key or TLS. Do not change the host to `0.0.0.0` or expose the port to a LAN without authentication, TLS, firewall rules, and an explicit threat model.
@@ -57,17 +65,20 @@ Default behavior asks before `write_file`, `edit_file`, and `run_command`.
 
 `--yes` auto-approves those operations for the session. It does not make them safe and must not be used on untrusted repositories.
 
+MCP mode defaults to `read-only`. `trusted-local` is the stdio equivalent of an explicit non-interactive approval boundary and must not be used with untrusted repositories, prompts, models, or browser clients.
+
 ## Recommended deployment
 
 For important work:
 
 1. Use a dedicated OS account or disposable VM.
 2. Keep the model server on localhost.
-3. Work from a clean Git branch with frequent reviewable commits.
-4. Do not expose production credentials to the agent process.
-5. Review every shell command and diff.
-6. Back up the repository independently of agent memory.
-7. Delete sensitive artifacts and sessions after use.
+3. Keep MCP in `read-only` mode unless mutation is required for the current task.
+4. Work from a clean Git branch with frequent reviewable commits.
+5. Do not expose production credentials to the agent process.
+6. Review every shell command and diff.
+7. Back up the repository independently of agent memory.
+8. Delete sensitive artifacts and sessions after use.
 
 ## Reporting a vulnerability
 

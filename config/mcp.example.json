@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "projectRoot": "../workspace",
+  "mode": "read-only",
+  "maximumResourceBytes": 131072,
+  "artifactPolicy": {
+    "artifactPersistenceChars": 800,
+    "maxToolOutputChars": 12000,
+    "staleToolCompressionChars": 800,
+    "staleToolPreviewChars": 500
+  },
+  "security": {
+    "allowCommands": false,
+    "commandTimeoutSeconds": 120
+  }
+}

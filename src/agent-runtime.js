@@ -1,13 +1,12 @@
 import { ContextManager } from "./context-manager.js";
-import { COMPACTION_SYSTEM_PROMPT, buildSystemPrompt } from "./prompts.js";
+import { buildSystemPrompt } from "./prompts.js";
 import { RepoMapper } from "./repo-mapper.js";
 import { TOOL_DEFINITIONS, ToolRunner } from "./tools.js";
-import { truncateMiddle } from "./utils.js";
-import { formatStateTransfer, parseStateTransfer } from "./state-transfer.js";
 import { normalizeAgentConfig } from "./config.js";
 import { serializeContext } from "./context-messages.js";
-import { isDurableToolMessage, recoveryReference, ToolEvidenceManager } from "./tool-evidence.js";
+import { ToolEvidenceManager } from "./tool-evidence.js";
 import { ContextInventory } from "./context-inventory.js";
+import { StateTransferCompactor } from "./state-transfer-compactor.js";
 
 function assistantContent(message) {
   if (typeof message.content === "string" && message.content.trim()) return message.content;
@@ -25,10 +24,6 @@ function parseToolArguments(toolCall) {
   }
 }
 
-function stripCodeFence(text) {
-  return String(text ?? "").trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
-}
-
 export class AgentRuntime {
   constructor({ projectRoot, config, client, memory, confirm, autoApprove = false, onEvent = () => {} }) {
     this.projectRoot = projectRoot;
@@ -38,6 +33,7 @@ export class AgentRuntime {
     this.onEvent = onEvent;
     this.mapper = new RepoMapper(projectRoot, memory);
     this.context = new ContextManager(this.config);
+    this.stateTransferCompactor = new StateTransferCompactor({ client });
     this.toolRunner = new ToolRunner({ projectRoot, memory, mapper: this.mapper, config: this.config, confirm, autoApprove });
     this.evidence = new ToolEvidenceManager({ memory, config: this.config });
     this.inventory = new ContextInventory({ sessionId: memory.sessionId });
@@ -102,35 +98,8 @@ export class AgentRuntime {
   }
 
   async compactMessages(messages) {
-    const transcript = messages.map((internalMessage) => {
-      const message = serializeContext([internalMessage])[0];
-      return {
-        role: message.role,
-        name: message.name,
-        content: truncateMiddle(message.content ?? "", 14000),
-        tool_calls: message.tool_calls,
-        recovery: isDurableToolMessage(internalMessage) ? recoveryReference(internalMessage) : undefined
-      };
-    });
-    const request = [
-      { role: "system", content: COMPACTION_SYSTEM_PROMPT },
-      { role: "user", content: JSON.stringify(transcript) }
-    ];
-    let lastError;
-    for (let attempt = 1; attempt <= 2; attempt += 1) {
-      const retryInstruction = attempt === 1 ? [] : [{
-        role: "user",
-        content: `Your previous state transfer was invalid: ${lastError.message}\nReturn a corrected JSON object matching every required field and no additional fields.`
-      }];
-      const { message } = await this.client.chat([...request, ...retryInstruction], { maxTokens: 2400, temperature: 0.1 });
-      const text = stripCodeFence(assistantContent(message));
-      try {
-        return formatStateTransfer(parseStateTransfer(text));
-      } catch (error) {
-        lastError = error;
-      }
-    }
-    throw new Error(`State transfer validation failed after 2 attempts: ${lastError.message}`);
+    const compactor = this.stateTransferCompactor ?? new StateTransferCompactor({ client: this.client });
+    return compactor.compact(messages);
   }
 
   async prepareContext(options = {}) {

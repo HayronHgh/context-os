@@ -35,7 +35,7 @@ cd context-os
 .\00_setup.bat
 ```
 
-Setup copies committed examples to ignored local config files.
+Setup installs the locked MCP dependencies, copies committed examples to ignored local config files, and generates a Cursor-compatible `config/llama-mcp.json` with absolute Node/ContextOS paths.
 
 ## 3. Configure the server
 
@@ -59,7 +59,8 @@ Edit `config/server.json`:
   "cacheTypeV": "q8_0",
   "flashAttention": "on",
   "fitTargetMiB": 3072,
-  "reasoningBudget": 4096
+  "reasoningBudget": 4096,
+  "hostUiPath": "host-ui"
 }
 ```
 
@@ -77,12 +78,12 @@ The default profile uses:
 
 ```text
 64K server context
-12K reserved output
+16K reserved output
 512-token fixed prompt safety margin
 800-character artifact persistence threshold
 800-character stale tool compression threshold
 500-character stale tool preview
-8K maximum completion per model call
+16K maximum completion per model call
 4K server reasoning budget
 20 maximum tool iterations per user turn
 ```
@@ -95,24 +96,59 @@ artifactPersistenceChars <= staleToolCompressionChars <= maxToolOutputChars
 
 The runtime refuses invalid durability ordering rather than allowing evidence to become prunable before it is persistent.
 
+Configure the primary MCP integration separately in `config/mcp.json`:
+
+```json
+{
+  "projectRoot": "C:\\Projects\\my-app",
+  "mode": "read-only",
+  "maximumResourceBytes": 131072,
+  "security": {
+    "allowCommands": false,
+    "commandTimeoutSeconds": 120
+  }
+}
+```
+
+This file controls capabilities, not inference. Keep `read-only` for orientation and analysis. Use `trusted-local` only when the selected local repository may be changed without an interactive approval prompt.
+
+To expose `write_file` and `edit_file` while keeping commands disabled, use `config/mcp.trusted-local.example.json` as the local profile. Configure `config/bridge.json` only for loopback and keep its browser-origin allowlist narrow.
+
+Build the official llama.cpp b10295 Web UI overlay once:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\build-host-ui.ps1 `
+  -LlamaUiSource C:\path\to\llama.cpp\tools\ui
+```
+
+The generated `host-ui/` is local build output and is intentionally ignored by Git.
+
 ## 5. Diagnose and start
 
 Run:
 
 ```text
-04_health_check.bat
-01_start_server.bat
+START.bat
 ```
 
-The server runs in the background. Logs are written to `logs/`, and the managed PID is stored under `runtime/`.
+The bridge and server run in the background. Logs are written to `logs/`, and managed PIDs are stored under `runtime/`. `START.bat` starts the loopback bridge, then passes `config/llama-mcp.json` and the integrated `host-ui/` path to llama.cpp. Startup succeeds only after bridge health, model health, the UI integration marker, and the `/tools` MCP surface all pass; it then opens the Web UI.
 
-Wait for a ready health response, then run:
+Wait for a ready health response, open the primary Web UI, and then run the health check:
+
+```text
+http://127.0.0.1:8080
+04_health_check.bat
+```
+
+The separate health check lists the MCP tools reported by llama.cpp. The default target comes from `config/mcp.json.projectRoot`. `01_start_server.bat` remains a compatible start entrypoint that does not open the browser.
+
+The standalone AgentRuntime CLI remains optional:
 
 ```text
 02_start_agent.bat
 ```
 
-The default target is the bundled `workspace/`. To select a repository:
+To select a different repository only for the standalone CLI:
 
 ```bat
 02_start_agent.bat "C:\Projects\my-app"
@@ -130,11 +166,13 @@ The runtime creates `.qwen-agent/` inside the selected repository. Add the gener
 
 ## 7. Approval prompts
 
-Before writes, exact edits, or commands, the CLI asks:
+Before writes, exact edits, or commands, the standalone CLI asks:
 
 ```text
 Approve edit_file: src/example.js? [y/N]
 ```
+
+MCP stdio has no interactive approval channel. Its default read-only mode does not advertise mutation tools. Explicit `trusted-local` mode auto-approves ToolRunner mutations while retaining path containment, destructive-command checks, timeouts, and evidence creation.
 
 Use `--yes` only in a controlled environment:
 
@@ -195,11 +233,11 @@ Keep `server.json.alias` and `agent.json.model` identical.
 
 ### Context cancellation
 
-Verify server and agent context sizes match, raise reserved output if the model exhausts completion space, reduce large tool previews, and inspect compaction events in session JSONL.
+Verify `http://127.0.0.1:8181/health`, the `contextos-host-bridge.json` marker, and that `--no-context-shift` is absent from startup. Keep server and agent context sizes equal and reserve the full expected completion budget. Bridge actions are logged in the browser console and bridge errors in `logs/host-context-bridge.stderr.log`. The bridge fails closed instead of sending an unsafe full prompt.
 
 ### Stop the server
 
-Run `03_stop_server.bat`. It stops only the PID recorded by this checkout.
+Run `STOP.bat`. It stops only the bridge and llama.cpp PIDs recorded by this checkout; closing llama.cpp also closes its stdio ContextOS MCP child.
 
 ## 12. Model download helper
 

@@ -4,6 +4,35 @@
 
 All notable changes to this project will be documented here.
 
+## [0.2.0-dev.7] - 2026-08-10
+
+### Bounded Host Context Bridge
+
+- Add a loopback-only HTTP preflight that receives a copy of each browser completion request and returns an unchanged or prepared message array without mutating the browser's IndexedDB history.
+- Patch the official llama.cpp b10295 `ChatService.sendMessage` through a narrow, anchor-checked overlay instead of introducing another custom chat UI or inference proxy.
+- Reuse ContextManager pressure stages, tool-schema-aware accounting, and schema-validated Coding State Transfer before the browser sends `/v1/chat/completions`.
+- Bound first-use oversized histories through chunked state transfers and bounded merge calls so the compaction prompt cannot itself consume the complete model window.
+- Fail closed on invalid origin, request schema, state transfer, or final pressure; keep llama.cpp native context shift enabled only as a last fallback.
+- Add exact request SHA-256 identity, bounded in-memory caching, loopback/CORS/request-size restrictions, and browser-history preservation telemetry.
+- Add one-click Bridge -> llama.cpp -> MCP -> integrated UI startup plus exact PID identity stop handling.
+- Add explicit trusted-local configuration that exposes write/edit inside one project root while command execution remains disabled.
+- Add a reproducible llama.cpp b10295 Windows MCP named-pipe compatibility patch and private-runtime build guide for large JSON-RPC requests.
+- Raise the tested 64K profile to a 16K reserved/output budget and add 188 automated tests, production UI type checking/build verification, and bilingual technical documentation.
+
+## [0.2.0-dev.6] - 2026-08-10
+
+### Standards-based MCP capability server
+
+- Close the unmerged custom Runtime Chat Gateway PR and keep `main` on the clean dev.5 baseline; no Gateway revert or history rewrite was required.
+- Add a host-independent stdio MCP server using the pinned official TypeScript SDK, with exact llama.cpp `b10295` / MCP `2024-11-05` compatibility coverage.
+- Reuse the existing ToolRunner, MemoryStore, RepoMapper, ToolEvidenceManager, containment, command policy, and artifact recovery path.
+- Advertise six read tools by default and require explicit `trusted-local` mode before mutation/state tools exist on the MCP surface.
+- Add bounded machine-readable resources for repository map, project memory, working state, artifact index, and exact artifact recovery.
+- Return Runtime-derived evidence envelopes; oversized results are externalized instead of being copied back into active model context.
+- Generate separate MCP and llama.cpp host configs during setup; `01_start_server.bat` passes `--mcp-servers-config` without enabling built-in llama.cpp tools, `--agent`, or the browser MCP proxy.
+- Preserve the optional standalone AgentRuntime CLI and all frozen M4/D0-D6 semantics.
+- Add official-client protocol E2E, exact tool/resource, containment, mutation, corruption, evidence, and artifact recovery tests plus bilingual documentation.
+
 ## [0.2.0-dev.5] - 2026-08-10
 
 ### Zero-mutation execution preparation

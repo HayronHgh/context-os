@@ -18,6 +18,9 @@ $Executable = Resolve-ProjectPath $Config.executable
 $Model = Resolve-ProjectPath $Config.model
 $Node = Get-Command node -ErrorAction SilentlyContinue
 $NvidiaSmi = Get-Command nvidia-smi -ErrorAction SilentlyContinue
+$McpConfigPath = Join-Path $ProjectRoot 'config\llama-mcp.json'
+$BridgeConfigPath = Join-Path $ProjectRoot 'config\bridge.json'
+$HostUi = if ($Config.hostUiPath) { Resolve-ProjectPath $Config.hostUiPath } else { $null }
 
 Write-Host 'Qwen Context OS doctor' -ForegroundColor Cyan
 Write-Host "Project: $ProjectRoot"
@@ -41,8 +44,35 @@ try {
     Write-Host "API health: $($Health | ConvertTo-Json -Compress)" -ForegroundColor Green
     $Models = Invoke-RestMethod -Uri "http://$($Config.host):$($Config.port)/v1/models" -TimeoutSec 3
     Write-Host "API model: $($Models.data.id -join ', ')"
+    $UiMarker = Invoke-RestMethod -Uri "http://$($Config.host):$($Config.port)/contextos-host-bridge.json" -TimeoutSec 3
+    Write-Host "Host UI integration: $($UiMarker.integration)" -ForegroundColor Green
 } catch {
     Write-Host "API health: OFFLINE ($($_.Exception.Message))" -ForegroundColor Yellow
 }
 
 Write-Host "Server config: ctx=$($Config.contextSize), output=$($Config.predict), reasoning-budget=$($Config.reasoningBudget), slots=$($Config.parallel), KV=$($Config.cacheTypeK)/$($Config.cacheTypeV), vision=$($Config.vision)"
+Write-Host "MCP config: $(if (Test-Path -LiteralPath $McpConfigPath) { 'OK' } else { 'MISSING - run 00_setup.bat' }) - $McpConfigPath"
+Write-Host "Host UI build: $(if ($HostUi -and (Test-Path -LiteralPath (Join-Path $HostUi 'contextos-host-bridge.json'))) { 'OK' } else { 'MISSING' }) - $HostUi"
+try {
+    $BridgeHealth = Invoke-RestMethod -Uri 'http://127.0.0.1:8181/health' -TimeoutSec 3
+    Write-Host "Host Bridge: $($BridgeHealth | ConvertTo-Json -Compress)" -ForegroundColor Green
+} catch {
+    Write-Host "Host Bridge: OFFLINE ($($_.Exception.Message))" -ForegroundColor Yellow
+}
+if (Test-Path -LiteralPath $McpConfigPath) {
+    try {
+        $Tools = Invoke-RestMethod -Uri "http://$($Config.host):$($Config.port)/tools" -TimeoutSec 3
+        $ToolItems = @($Tools)
+        if ($ToolItems.Count -eq 1 -and $null -ne $ToolItems[0].tools) {
+            $ToolItems = @($ToolItems[0].tools)
+        }
+        $Names = @($ToolItems | ForEach-Object {
+            if ($_.tool) { $_.tool }
+            elseif ($_.definition.function.name) { $_.definition.function.name }
+            elseif ($_.function.name) { $_.function.name }
+        } | Where-Object { $_ })
+        Write-Host "MCP tools: $($Names -join ', ')" -ForegroundColor Green
+    } catch {
+        Write-Host "MCP tools: unavailable ($($_.Exception.Message))" -ForegroundColor Yellow
+    }
+}

@@ -47,6 +47,14 @@ File path 會先通過 lexical project-root containment，再把每個已存在�
 
 未經檢查不要 commit 或同步。
 
+### MCP Capability Server
+
+MCP server 是 local stdio child process，不是 remote service。它預設只公布 read tools；repository writes、state writes、map rebuild、episodes 與 commands 都不會出現在 tool list。
+
+`trusted-local` 是顯式 launch-time trust decision。因為 stdio 沒有 interactive approval channel，這個模式會啟用 non-interactive ToolRunner approval；containment、command denial、timeout 與 evidence handling 仍然有效。`run_command` 還必須另行設定 `security.allowCommands: true`。Request 來自 llama.cpp 或 Qwen，不代表它已獲授權。
+
+ContextOS 不會啟用 llama.cpp built-in tools、`--agent` 或 browser MCP CORS proxy。若另行開啟，會建立不受 ContextOS policy 控制的平行 capability path。
+
 ### 本機 HTTP server
 
 Example server 綁定 `127.0.0.1` 並將 CORS 限為 localhost，但沒有設定 API key 或 TLS。若沒有 authentication、TLS、firewall 與明確 threat model，不要改為 `0.0.0.0` 或開放 LAN。
@@ -57,17 +65,20 @@ Example server 綁定 `127.0.0.1` 並將 CORS 限為 localhost，但沒有設定
 
 `--yes` 會在該 session 自動核准，並不代表操作變安全；不可用於不可信 repository。
 
+MCP mode 預設是 `read-only`。`trusted-local` 是 stdio 的顯式 non-interactive approval boundary，不可用於不可信 repository、prompt、model 或 browser client。
+
 ## 建議部署方式
 
 重要工作建議：
 
 1. 使用專用 OS account 或拋棄式 VM。
 2. Model server 只留在 localhost。
-3. 從乾淨 Git branch 工作，經常建立可 review commit。
-4. 不要讓 Agent process 取得 production credentials。
-5. 人工檢查每個 shell command 與 diff。
-6. Repository 備份不可依賴 Agent memory。
-7. 使用後刪除敏感 artifacts 與 sessions。
+3. 除非目前任務需要 mutation，否則 MCP 保持 `read-only`。
+4. 從乾淨 Git branch 工作，經常建立可 review commit。
+5. 不要讓 Agent process 取得 production credentials。
+6. 人工檢查每個 shell command 與 diff。
+7. Repository 備份不可依賴 Agent memory。
+8. 使用後刪除敏感 artifacts 與 sessions。
 
 ## 回報漏洞
 

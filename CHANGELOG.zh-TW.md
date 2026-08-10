@@ -4,6 +4,35 @@
 
 所有重要變更都會記錄於此。
 
+## [0.2.0-dev.7] - 2026-08-10
+
+### Bounded Host Context Bridge
+
+- 加入只綁定 loopback 的 HTTP preflight，接收每次 browser completion request 的副本，回傳 unchanged 或 prepared message array，不修改 browser IndexedDB history。
+- 以狹窄且有 anchor check 的 overlay 修改官方 llama.cpp b10295 `ChatService.sendMessage`，不再建立另一套 custom chat UI 或 inference proxy。
+- 在 browser 送出 `/v1/chat/completions` 前，重用 ContextManager pressure stages、tool-schema-aware accounting 與通過 schema 驗證的 Coding State Transfer。
+- 第一次接入時若 history 已過大，使用 bounded chunk state transfers 與 bounded merge calls，避免 compaction prompt 自己占滿整個模型 window。
+- Origin、request schema、state transfer 或 final pressure 任一不合法都 fail closed；llama.cpp native context shift 只保留為最後 fallback。
+- 加入 exact request SHA-256 identity、bounded memory cache、loopback／CORS／request-size restrictions 與 browser-history preservation telemetry。
+- 加入一鍵 Bridge -> llama.cpp -> MCP -> integrated UI 啟動，以及具有 exact PID identity 的停止流程。
+- 加入 explicit trusted-local config，在單一 project root 內公布 write/edit，同時保持 command execution 關閉。
+- 加入可重現的 llama.cpp b10295 Windows MCP named-pipe 相容性 patch 與 private runtime 建置說明，處理大型 JSON-RPC request。
+- 將已測 64K profile 調整為 16K reserved/output budget，並加入 188 項自動測試、production UI type check／build 驗證與雙語技術文件。
+
+## [0.2.0-dev.6] - 2026-08-10
+
+### Standards-based MCP Capability Server
+
+- 關閉尚未 merge 的 custom Runtime Chat Gateway PR，讓 `main` 保持乾淨 dev.5 baseline；不需要 Gateway revert 或 history rewrite。
+- 使用固定版官方 TypeScript SDK 加入 host-independent stdio MCP server，並覆蓋 llama.cpp `b10295`／MCP `2024-11-05` 的精確相容性。
+- 重用既有 ToolRunner、MemoryStore、RepoMapper、ToolEvidenceManager、containment、command policy 與 artifact recovery path。
+- 預設只公布六個 read tools；只有顯式 `trusted-local` 才會讓 mutation／state tools 出現在 MCP surface。
+- 加入 bounded、machine-readable repository map、project memory、working state、artifact index 與 exact artifact recovery resources。
+- 回傳 Runtime-derived evidence envelope；oversized result 會 externalize，不會完整複製回 active model context。
+- Setup 產生分離的 MCP 與 llama.cpp Host configs；`01_start_server.bat` 傳入 `--mcp-servers-config`，但不啟用 llama.cpp built-in tools、`--agent` 或 browser MCP proxy。
+- 保留選用 standalone AgentRuntime CLI，以及所有 frozen M4／D0-D6 semantics。
+- 加入官方 Client protocol E2E、精確 tool/resource、containment、mutation、corruption、evidence 與 artifact recovery tests，並補齊雙語文件。
+
 ## [0.2.0-dev.5] - 2026-08-10
 
 ### Zero-mutation execution preparation

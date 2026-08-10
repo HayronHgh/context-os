@@ -1,0 +1,16 @@
+diff --git a/tools/server/server-mcp.cpp b/tools/server/server-mcp.cpp
+index 93db616..73b26c7 100644
+--- a/tools/server/server-mcp.cpp
++++ b/tools/server/server-mcp.cpp
+@@ -545,8 +545,10 @@ static bool mcp_write_all(FILE * f, const std::string & data, std::atomic<bool>
+     DWORD  nowait = PIPE_NOWAIT;
+     SetNamedPipeHandleState(h, &nowait, NULL, NULL);
+     while (total < data.size() && running.load()) {
++        const size_t remaining = data.size() - total;
++        const DWORD  to_write  = (DWORD) (remaining < 2048 ? remaining : 2048);
+         DWORD written = 0;
+-        BOOL  ok      = WriteFile(h, data.data() + total, (DWORD) (data.size() - total), &written, NULL);
++        BOOL  ok      = WriteFile(h, data.data() + total, to_write, &written, NULL);
+         if (ok && written > 0) {
+             total += written;
+             continue;

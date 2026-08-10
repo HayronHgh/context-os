@@ -4,7 +4,7 @@
 
 > **Make task lifetime independent from context-window lifetime.**
 
-ContextOS is an experimental, persistent context and memory runtime for long-running local coding agents. It sits in front of an OpenAI-compatible local model server, externalizes volatile agent state, and rebuilds working context when conversation history becomes too large.
+ContextOS is an experimental persistent context, memory, and MCP capability runtime for long-running local coding agents. llama.cpp remains the inference and interaction plane; ContextOS externalizes volatile state and exposes policy-controlled repository, memory, and evidence capabilities over standard local MCP.
 
 [![CI](https://github.com/HayronHgh/context-os/actions/workflows/ci.yml/badge.svg)](https://github.com/HayronHgh/context-os/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -33,19 +33,20 @@ The goal is simple: a conversation may be compacted or reset without killing the
 
 ## Status
 
-**Experimental · v0.2.0-dev.5 D0-D6 Execution Finalization · Windows-first**
+**Experimental · v0.2.0-dev.7 Host Context Bridge · Windows-first**
 
-The deterministic control remains frozen at [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2), and M4 experiment inputs are pinned to `aa59f4d`. The v0.2 development line now reaches model-free execution finalization: D5 atomically commits the exact validated context, then D6 generation-binds that commit, rebuilds the existing Context Inventory registry, and uses the same canonical ContextManager estimator and tool envelope to report signed actual reduction. Artifact creation and memory promotion remain absent.
+The deterministic control remains frozen at [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2), M4 experiment inputs remain pinned to `aa59f4d`, and the D0-D6 dev.5 execution contract is unchanged. dev.6 added the standards-based stdio MCP capability boundary. dev.7 adds a loopback Host Context Bridge and a narrow llama.cpp b10295 Web UI overlay so every browser completion request is pressure-checked before inference. The browser still owns the full transcript and llama.cpp remains the inference runtime.
 
 Tested with:
 
-- llama.cpp server, OpenAI-compatible chat/tool API
+- llama.cpp `b10295` OpenAI-compatible chat/tool API; native MCP host compatibility verified against the tagged source and exact protocol flow
 - Qwen3.6-35B-A3B GGUF
 - Windows 11, Node.js 24, NVIDIA CUDA
-- 64K active context, 8K agent output, 4K reasoning budget
+- 64K active context, 16K reserved/output budget, 4K reasoning budget
 - v0.1.2 `read_file -> artifact -> read_artifact` end-to-end recovery path
+- Official MCP SDK negotiation plus llama.cpp MCP `2024-11-05` protocol smoke
 
-The runtime is not tied to a specific model name, but the backend must return OpenAI-style chat messages and tool calls. Other models and servers are not yet part of the test matrix.
+The standalone AgentRuntime is not tied to a specific model name, but its backend must return OpenAI-style chat messages and tool calls. The MCP server is host-independent stdio; llama.cpp `b10295` is the compatibility target. Other host/model pairs are not yet part of the test matrix.
 
 ## Features
 
@@ -89,24 +90,28 @@ The runtime is not tied to a specific model name, but the backend must return Op
 - Approval prompts for writes, edits, and shell commands
 - Destructive-command guardrails
 - Windows start, stop, diagnostics, setup, and resumable model download scripts
-- Zero runtime npm dependencies
+- Standard MCP stdio server using the pinned official TypeScript SDK
+- Default read-only tool surface and explicit `trusted-local` mutation mode
+- Bounded MCP resources for repository map, project memory, working state, and durable artifacts
+- Machine-readable MCP evidence envelopes backed by the existing ToolEvidenceManager
+- Loopback-only Host Context Bridge with bounded request validation, exact-request caching, and fail-closed preparation
+- Minimal official llama.cpp b10295 Web UI overlay that preserves browser history while compacting the model request copy
+- One-click bridge/server/MCP/UI lifecycle with integrated UI, health, and mutation-tool checks
 
 ## Architecture
 
 ```mermaid
-flowchart TD
-    U["User / CLI"] --> A["Agent Runtime"]
-    A --> C["Context Manager"]
-    A --> T["Tool Runner"]
-    A --> M["Memory Store"]
-    A --> R["Repository Mapper"]
-    A --> L["OpenAI-compatible Client"]
-    L --> S["Local Model Server"]
-    S --> Q["Local Coding Model"]
-    T --> P["Project Repository"]
-    R --> P
-    M --> D[".qwen-agent/"]
-    C --> A
+flowchart LR
+    U["User"] --> H["llama.cpp Web UI / Agent Host"]
+    H --> B["ContextOS Host Bridge preflight"]
+    B --> H
+    H <--> L["llama.cpp inference"]
+    L <--> Q["Qwen3.6"]
+    H <--> C["MCP client"]
+    C <--> M["ContextOS MCP server"]
+    M --> T["ToolRunner / policy"]
+    M --> D["Memory / evidence / artifacts"]
+    T --> P["Project repository"]
 ```
 
 The `.qwen-agent` directory name is retained for compatibility with the original MVP. A neutral on-disk namespace is planned before a stable release.
@@ -141,25 +146,28 @@ This creates ignored local files:
 ```text
 config/agent.json
 config/server.json
+config/mcp.json
+config/llama-mcp.json
+config/bridge.json
 ```
 
-Edit `config/server.json` and point `executable` and `model` to your local files. Keep `config/agent.json.model` equal to `config/server.json.alias`.
+Edit `config/server.json` and point `executable` and `model` to your local files. Edit `config/mcp.json.projectRoot` for the repository exposed to the llama.cpp Web UI. Keep MCP mode `read-only` unless local mutation is intentional.
+
+Build the exact b10295 Web UI overlay once, or copy an already-built ignored `host-ui/` directory. See [Host Context Bridge](docs/HOST_CONTEXT_BRIDGE.md). To expose writes without shell commands, copy the fields from `config/mcp.trusted-local.example.json` into local `config/mcp.json`.
 
 ### 3. Diagnose and start
 
 ```text
-04_health_check.bat
-01_start_server.bat
-02_start_agent.bat
+START.bat
 ```
 
-To work on another repository:
+`START.bat` is the one-click stack entrypoint. It starts the Host Context Bridge and llama.cpp with the generated `config/llama-mcp.json`, waits for both health surfaces, verifies the exact integrated UI marker and ContextOS tools through `/tools`, and opens the Web UI. In `trusted-local` mode it also requires `write_file` and `edit_file`. `02_start_agent.bat` remains an optional standalone CLI:
 
 ```bat
 02_start_agent.bat "C:\path\to\your\repository"
 ```
 
-Stop the managed server with `03_stop_server.bat`.
+Stop the managed bridge, server, and stdio MCP child with the one-click `STOP.bat`.
 
 ## Agent commands
 
@@ -177,18 +185,23 @@ Stop the managed server with `03_stop_server.bat`.
 
 ## Tools
 
-The model can request 12 runtime-managed tools:
+Read-only MCP mode advertises six Runtime-managed tools:
 
 ```text
 read_file             file_glob_search
-grep_search           write_file
-edit_file             run_command
-build_repo_map        read_working_state
-read_artifact         update_working_state
-save_episode          get_datetime
+grep_search           read_working_state
+read_artifact         get_datetime
 ```
 
-File writes, edits, and shell commands require approval by default.
+Explicit `trusted-local` mode additionally advertises six mutation/state tools:
+
+```text
+write_file            edit_file
+run_command           build_repo_map
+update_working_state  save_episode
+```
+
+The standalone CLI keeps interactive approval. MCP stdio has no interactive approval channel, so read-only mode omits mutations and `trusted-local` is explicit non-interactive auto-approval. All calls still use existing containment, command policy, and evidence handling.
 
 ## Persistent state
 
@@ -240,6 +253,7 @@ Tool results above `artifactPersistenceChars` are persisted independently of pro
 - `.qwen-agent` may contain source code, command output, paths, or secrets.
 - Use a VM, container, or disposable account for untrusted code.
 - The default server binds to localhost; do not expose it to a LAN without authentication, TLS, firewall rules, and a stricter threat model.
+- MCP defaults to read-only. Do not enable `trusted-local`, llama.cpp `--agent`, built-in tools, or the MCP CORS proxy for untrusted content.
 
 Read [docs/SECURITY.md](docs/SECURITY.md) before using the runtime on important repositories.
 
@@ -257,6 +271,7 @@ The project treats context lifecycle as a first-class system problem: tool artif
 - Regex-based symbol extraction, not AST/LSP intelligence
 - Recent-only episode retrieval
 - Non-streaming chat completions
+- stdio-only MCP transport; no remote/LAN MCP service or authentication
 - File-based persistence, no transactional database
 - No strong OS sandbox
 - Single coordinator, no multi-agent think tank
@@ -266,6 +281,8 @@ The project treats context lifecycle as a first-class system problem: tool artif
 
 - **v0.1.2:** deterministic durability and Phase 1/2 core freeze
 - **v0.2.0:** Adaptive Semantic Context Planning research and threshold/semantic/hybrid benchmark
+- **v0.2.0-dev.6:** standards-based MCP capability server without host transcript ownership
+- **v0.2.0-dev.7:** bounded Host Context Bridge and exact llama.cpp b10295 Web UI request preflight
 - **v0.3.0:** tree-sitter, LSP, Git, and repository graph intelligence
 - **v0.4.0:** SQLite FTS5/BM25, graph retrieval, and optional semantic fallback
 - **v0.5.0:** clean-context investigator/architect/reviewer think tank
@@ -286,16 +303,19 @@ After v0.1.2, the 0.1.x line accepts only critical bugs, security fixes, regress
 | [Compaction authorization](docs/COMPACTION_VALIDATION.md) | [Compaction authorization](docs/COMPACTION_VALIDATION.zh-TW.md) |
 | [Bounded semantic planning](docs/BOUNDED_SEMANTIC_PLANNING.md) | [Bounded semantic planning](docs/BOUNDED_SEMANTIC_PLANNING.zh-TW.md) |
 | [Execution contract](docs/EXECUTION_CONTRACT.md) | [Execution contract](docs/EXECUTION_CONTRACT.zh-TW.md) |
+| [MCP capability server](docs/MCP_SERVER.md) | [MCP capability server](docs/MCP_SERVER.zh-TW.md) |
+| [Host Context Bridge](docs/HOST_CONTEXT_BRIDGE.md) | [Host Context Bridge](docs/HOST_CONTEXT_BRIDGE.zh-TW.md) |
+| [Windows MCP timeout fix](docs/WINDOWS_MCP_TIMEOUT_FIX.md) | [Windows MCP timeout fix](docs/WINDOWS_MCP_TIMEOUT_FIX.zh-TW.md) |
 | [RFC-001: Adaptive Context Planning](docs/rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.md) | [RFC-001：自適應 Context Planning](docs/rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.zh-TW.md) |
 
 ## Development
 
 ```powershell
-node --test
+npm ci
+npm test
 node src/index.js --help
+node src/mcp-server.js --help
 ```
-
-The runtime uses only Node.js built-in modules.
 
 ## License
 
