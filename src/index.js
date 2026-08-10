@@ -63,7 +63,7 @@ async function main() {
   };
   const runtime = new AgentRuntime({ projectRoot, config, client, memory, confirm, autoApprove: args.yes, onEvent: eventPrinter });
 
-  console.log("ContextOS 0.2.0-dev.6 (standalone AgentRuntime CLI)");
+  console.log("ContextOS 0.2.0-dev.7 (standalone AgentRuntime CLI)");
   console.log(`Project: ${projectRoot}`);
   try {
     const status = await runtime.checkHealth();

@@ -2,7 +2,7 @@
 
 繁體中文 · [English](TECHNICAL_REPORT.md)
 
-版本：0.2.0-dev.6
+版本：0.2.0-dev.7
 
 狀態：Experimental Research MVP
 
@@ -25,14 +25,18 @@ ContextOS 實作本機 coding agent 外部 Context Runtime 已凍結的前兩個
 - 包裝既有 repository、memory、evidence capabilities 的標準 stdio MCP server
 - 預設 read-only capability surface 與顯式 trusted-local mutation mode
 - Bounded、machine-readable MCP resources 與 evidence envelopes
+- 準備 browser model request 副本的 loopback Host Context Bridge
+- exact llama.cpp b10295 Web UI overlay 與一鍵 integrated lifecycle
 
 尚未實作 AST/LSP graph、semantic retrieval、transactional memory database、多 Agent orchestration、自製 Web UI 或強 process sandbox。
 
-### dev.6 可以做什麼
+### dev.7 可以做什麼
 
 MCP Host 可為一個 selected project 啟動 ContextOS、negotiation tools/resources、透過既有 ToolRunner 讀取與搜尋 repository、取得 working/project memory、重建 map，並恢復 exact persisted tool evidence。只有顯式 `trusted-local` 模式才能 write/edit files、更新 state、保存 episodes，且 `run_command` 還必須另行開啟。每個已執行 result 都沿用 evidence threshold、artifact integrity metadata 與 recovery path。
 
-llama.cpp 仍是 inference 與 interaction plane，Qwen3.6 仍是 cognitive model。ContextOS 不代理 tokens，也不擁有 conversation。Frozen Context Policy Engine 仍完整存在，但本 milestone 不把它接進 Host transcript。
+llama.cpp 仍是 inference 與 interaction plane，Qwen3.6 仍是 cognitive model；browser 仍是完整 conversation 的 authority。每次真正的 browser completion 前，獨立 Host Context Bridge 會計算 messages 加 tool schemas 的壓力，超過 policy threshold 時執行 isolated bounded state transfer，再回傳 prepared request representation。它不代理 completion stream，也不修改 browser database。
+
+64K profile 預留 16K output。Semantic preparation 在剩餘 49,152-token input budget 的 72% 啟動。第一次接入時若 transcript 已過大，會拆成 bounded state-transfer calls，再經相同 strict schema 合併，避免 compaction request 成為第二條 context overflow 路徑。不安全或不合法的 preparation 會 fail closed；llama.cpp native context shift 只作最後 safeguard。
 
 ## 實作清單
 
@@ -43,6 +47,10 @@ llama.cpp 仍是 inference 與 interaction plane，Qwen3.6 仍是 cognitive mode
 | `src/mcp-tools.js` | 既有 tool schema binding、mode gate 與 evidence result envelope |
 | `src/mcp-resources.js` | Bounded read-only repository／memory／artifact resources |
 | `src/agent-runtime.js` | Model/tool loop、prompt reconstruction、持久化 |
+| `src/state-transfer-compactor.js` | Strict bounded／chunked Coding State Transfer 與 repair |
+| `src/host-context-bridge.js` | Request validation、pressure preparation 與 SHA-256 cache identity |
+| `src/host-context-bridge-server.js` | Loopback HTTP、CORS allowlist、body limits、health 與 fail-closed errors |
+| `ui-overlay/contextos-bridge.service.ts` | 官方 b10295 Web UI request preflight adapter |
 | `src/config.js` | Durability defaults 與 startup invariants |
 | `src/context-messages.js` | Internal-to-model serialization boundary |
 | `src/context-unit.js` | Context Unit schema、enums、stable ID factory 與 validation |

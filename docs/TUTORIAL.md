@@ -59,7 +59,8 @@ Edit `config/server.json`:
   "cacheTypeV": "q8_0",
   "flashAttention": "on",
   "fitTargetMiB": 3072,
-  "reasoningBudget": 4096
+  "reasoningBudget": 4096,
+  "hostUiPath": "host-ui"
 }
 ```
 
@@ -77,12 +78,12 @@ The default profile uses:
 
 ```text
 64K server context
-12K reserved output
+16K reserved output
 512-token fixed prompt safety margin
 800-character artifact persistence threshold
 800-character stale tool compression threshold
 500-character stale tool preview
-8K maximum completion per model call
+16K maximum completion per model call
 4K server reasoning budget
 20 maximum tool iterations per user turn
 ```
@@ -111,15 +112,26 @@ Configure the primary MCP integration separately in `config/mcp.json`:
 
 This file controls capabilities, not inference. Keep `read-only` for orientation and analysis. Use `trusted-local` only when the selected local repository may be changed without an interactive approval prompt.
 
+To expose `write_file` and `edit_file` while keeping commands disabled, use `config/mcp.trusted-local.example.json` as the local profile. Configure `config/bridge.json` only for loopback and keep its browser-origin allowlist narrow.
+
+Build the official llama.cpp b10295 Web UI overlay once:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\build-host-ui.ps1 `
+  -LlamaUiSource C:\path\to\llama.cpp\tools\ui
+```
+
+The generated `host-ui/` is local build output and is intentionally ignored by Git.
+
 ## 5. Diagnose and start
 
 Run:
 
 ```text
-01_start_server.bat
+START.bat
 ```
 
-The server runs in the background. Logs are written to `logs/`, and the managed PID is stored under `runtime/`. `01_start_server.bat` passes `config/llama-mcp.json` to llama.cpp, which launches ContextOS as a standard stdio child process.
+The bridge and server run in the background. Logs are written to `logs/`, and managed PIDs are stored under `runtime/`. `START.bat` starts the loopback bridge, then passes `config/llama-mcp.json` and the integrated `host-ui/` path to llama.cpp. Startup succeeds only after bridge health, model health, the UI integration marker, and the `/tools` MCP surface all pass; it then opens the Web UI.
 
 Wait for a ready health response, open the primary Web UI, and then run the health check:
 
@@ -128,7 +140,7 @@ http://127.0.0.1:8080
 04_health_check.bat
 ```
 
-The health check lists the MCP tools reported by llama.cpp. The default target comes from `config/mcp.json.projectRoot`.
+The separate health check lists the MCP tools reported by llama.cpp. The default target comes from `config/mcp.json.projectRoot`. `01_start_server.bat` remains a compatible start entrypoint that does not open the browser.
 
 The standalone AgentRuntime CLI remains optional:
 
@@ -221,11 +233,11 @@ Keep `server.json.alias` and `agent.json.model` identical.
 
 ### Context cancellation
 
-Verify server and agent context sizes match, raise reserved output if the model exhausts completion space, reduce large tool previews, and inspect compaction events in session JSONL.
+Verify `http://127.0.0.1:8181/health`, the `contextos-host-bridge.json` marker, and that `--no-context-shift` is absent from startup. Keep server and agent context sizes equal and reserve the full expected completion budget. Bridge actions are logged in the browser console and bridge errors in `logs/host-context-bridge.stderr.log`. The bridge fails closed instead of sending an unsafe full prompt.
 
 ### Stop the server
 
-Run `03_stop_server.bat`. It stops only the PID recorded by this checkout.
+Run `STOP.bat`. It stops only the bridge and llama.cpp PIDs recorded by this checkout; closing llama.cpp also closes its stdio ContextOS MCP child.
 
 ## 12. Model download helper
 

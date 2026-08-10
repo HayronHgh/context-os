@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "host": "127.0.0.1",
+  "port": 8181,
+  "agentConfig": "agent.json",
+  "maximumRequestBytes": 8388608,
+  "cacheEntries": 32,
+  "maximumCacheBytes": 33554432,
+  "allowedOrigins": [
+    "http://127.0.0.1:8080",
+    "http://localhost:8080"
+  ]
+}

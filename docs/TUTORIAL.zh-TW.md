@@ -59,7 +59,8 @@ Setup 會安裝 lockfile 固定的 MCP dependencies、把已提交 examples 複�
   "cacheTypeV": "q8_0",
   "flashAttention": "on",
   "fitTargetMiB": 3072,
-  "reasoningBudget": 4096
+  "reasoningBudget": 4096,
+  "hostUiPath": "host-ui"
 }
 ```
 
@@ -77,12 +78,12 @@ agent.json model == server.json alias
 
 ```text
 64K server context
-12K reserved output
+16K reserved output
 512-token 固定 prompt 安全餘量
 800-character artifact persistence threshold
 800-character stale tool compression threshold
 500-character stale tool preview
-每次模型呼叫最多 8K completion
+每次模型呼叫最多 16K completion
 4K server reasoning budget
 每個 user turn 最多 20 次 tool iterations
 ```
@@ -111,15 +112,26 @@ Durability 順序錯誤時 Runtime 會拒絕啟動，不允許 evidence 在持�
 
 這份檔案控制 capabilities，不控制 inference。Orientation／分析保持 `read-only`；只有 selected local repository 可在無 interactive approval 的情況下修改時，才使用 `trusted-local`。
 
+若要公布 `write_file` 與 `edit_file`、同時保持 commands 關閉，可將 `config/mcp.trusted-local.example.json` 作為本機 profile。`config/bridge.json` 只綁定 loopback，browser-origin allowlist 應維持最小範圍。
+
+第一次先建置官方 llama.cpp b10295 Web UI overlay：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\build-host-ui.ps1 `
+  -LlamaUiSource C:\path\to\llama.cpp\tools\ui
+```
+
+產生的 `host-ui/` 是本機 build output，因此刻意由 Git 忽略。
+
 ## 5. 診斷與啟動
 
 依序執行：
 
 ```text
-01_start_server.bat
+START.bat
 ```
 
-Server 會在背景執行，log 寫入 `logs/`，managed PID 放在 `runtime/`。`01_start_server.bat` 會把 `config/llama-mcp.json` 傳給 llama.cpp，由它把 ContextOS 啟動成標準 stdio child process。
+Bridge 與 server 會在背景執行，logs 寫入 `logs/`，managed PIDs 放在 `runtime/`。`START.bat` 先啟動 loopback Bridge，再把 `config/llama-mcp.json` 與 integrated `host-ui/` path 傳給 llama.cpp。Bridge health、模型 health、UI integration marker 與 `/tools` MCP surface 全部通過才算啟動成功，之後才自動開啟 Web UI。
 
 看到 ready health response 後，開啟主要 Web UI，再執行 health check：
 
@@ -128,7 +140,7 @@ http://127.0.0.1:8080
 04_health_check.bat
 ```
 
-Health check 會列出 llama.cpp 回報的 MCP tools。預設目標來自 `config/mcp.json.projectRoot`。
+獨立 health check 會列出 llama.cpp 回報的 MCP tools。預設目標來自 `config/mcp.json.projectRoot`。`01_start_server.bat` 保留為不自動開啟 browser 的相容啟動入口。
 
 Standalone AgentRuntime CLI 仍可選用：
 
@@ -221,11 +233,11 @@ node .\src\index.js --project C:\Projects\my-app --prompt "只分析失敗測試
 
 ### Context cancellation
 
-確認 server/agent context 相同；模型耗盡 completion space 時增加 reserved output；減少大型 tool preview；在 session JSONL 檢查 compaction events。
+確認 `http://127.0.0.1:8181/health`、`contextos-host-bridge.json` marker，並確認 startup 已移除 `--no-context-shift`。Server／agent context 必須相同，並保留完整的 expected completion budget。Bridge actions 會出現在 browser console；Bridge errors 在 `logs/host-context-bridge.stderr.log`。Bridge 無法安全準備時會 fail closed，不再送出危險的完整 prompt。
 
 ### 停止 server
 
-執行 `03_stop_server.bat`，只會停止此 checkout 記錄的 PID。
+執行 `STOP.bat`，只會停止此 checkout 記錄的 Bridge 與 llama.cpp PID；關閉 llama.cpp 時也會關閉其 stdio ContextOS MCP child。
 
 ## 12. 模型下載工具
 

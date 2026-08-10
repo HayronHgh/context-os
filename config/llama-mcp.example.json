@@ -8,7 +8,7 @@
         "C:\\path\\to\\context-os\\config\\mcp.json"
       ],
       "cwd": "C:\\path\\to\\context-os",
-      "timeout_ms": 30000
+      "timeout_ms": 150000
     }
   }
 }

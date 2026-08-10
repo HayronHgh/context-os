@@ -2,7 +2,7 @@
 
 [繁體中文](MCP_SERVER.zh-TW.md) · English
 
-Version: 0.2.0-dev.6
+Version: 0.2.0-dev.7
 
 ## Purpose
 
@@ -217,17 +217,19 @@ Diagnostics go to stderr only; stdout is reserved for MCP NDJSON frames.
 
 ## Context Policy Engine boundary
 
-The frozen M4 planner identity and D0-D6 execution semantics remain unchanged. They still exist as the Context Policy Engine, but this milestone does not wire them into the host transcript:
+The MCP server still does not own the host transcript. dev.7 adds a separate, loopback-only Host Context Bridge adapter around the existing ContextManager:
 
 ```text
 Implemented now:
 MCP Host -> MCP Capability Server -> tools/evidence/memory/repository
+llama.cpp Web UI request copy -> Host Context Bridge -> ContextManager -> prepared request
 
 Not implemented now:
-MCP Host transcript -> ContextInventory -> D0-D6 mutation of host context
+MCP server -> silent mutation of browser transcript
+Host transcript -> M2-M6 planner/authorization/atomic-execution pipeline
 ```
 
-This avoids pretending that the MCP server owns or can silently rewrite llama.cpp conversation history.
+The browser retains its complete IndexedDB history. The bridge may only replace the message representation in one outgoing completion request and fails closed when safe preparation is impossible. See [Host Context Bridge](HOST_CONTEXT_BRIDGE.md).
 
 ## Verification
 
@@ -239,4 +241,4 @@ node src/mcp-server.js --help
 
 The tests cover official SDK negotiation, the llama.cpp `2024-11-05` initialize flow, exact tool lists, resources, ToolRunner containment, durable evidence, artifact recovery, read-only mutation rejection, explicit trusted-local behavior, malformed calls, auxiliary corruption, and the frozen M4 manifest.
 
-The executable itself may still be blocked by Windows Application Control. In that case, validate or unblock the trusted llama.cpp binary according to your local security policy; do not disable system protection globally.
+The executable itself may still be blocked by Windows Application Control. `START.bat` reports the signature, Internet-zone marker, and Smart App Control state when this happens. Smart App Control has no per-app allow switch: prefer a CA-signed/reputable build or a WSL/container runtime. Turning it off is a system-wide security decision and is never performed by these scripts.

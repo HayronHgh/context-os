@@ -33,16 +33,16 @@ The goal is simple: a conversation may be compacted or reset without killing the
 
 ## Status
 
-**Experimental · v0.2.0-dev.6 MCP Capability Server · Windows-first**
+**Experimental · v0.2.0-dev.7 Host Context Bridge · Windows-first**
 
-The deterministic control remains frozen at [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2), M4 experiment inputs remain pinned to `aa59f4d`, and the D0-D6 dev.5 execution contract is unchanged. dev.6 adds a standards-based stdio MCP capability boundary around the existing tools, evidence, memory, artifacts, and repository policy. llama.cpp remains the inference runtime and primary Web UI/Agent Host; ContextOS does not own its transcript or proxy model traffic.
+The deterministic control remains frozen at [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2), M4 experiment inputs remain pinned to `aa59f4d`, and the D0-D6 dev.5 execution contract is unchanged. dev.6 added the standards-based stdio MCP capability boundary. dev.7 adds a loopback Host Context Bridge and a narrow llama.cpp b10295 Web UI overlay so every browser completion request is pressure-checked before inference. The browser still owns the full transcript and llama.cpp remains the inference runtime.
 
 Tested with:
 
 - llama.cpp `b10295` OpenAI-compatible chat/tool API; native MCP host compatibility verified against the tagged source and exact protocol flow
 - Qwen3.6-35B-A3B GGUF
 - Windows 11, Node.js 24, NVIDIA CUDA
-- 64K active context, 8K agent output, 4K reasoning budget
+- 64K active context, 16K reserved/output budget, 4K reasoning budget
 - v0.1.2 `read_file -> artifact -> read_artifact` end-to-end recovery path
 - Official MCP SDK negotiation plus llama.cpp MCP `2024-11-05` protocol smoke
 
@@ -94,12 +94,17 @@ The standalone AgentRuntime is not tied to a specific model name, but its backen
 - Default read-only tool surface and explicit `trusted-local` mutation mode
 - Bounded MCP resources for repository map, project memory, working state, and durable artifacts
 - Machine-readable MCP evidence envelopes backed by the existing ToolEvidenceManager
+- Loopback-only Host Context Bridge with bounded request validation, exact-request caching, and fail-closed preparation
+- Minimal official llama.cpp b10295 Web UI overlay that preserves browser history while compacting the model request copy
+- One-click bridge/server/MCP/UI lifecycle with integrated UI, health, and mutation-tool checks
 
 ## Architecture
 
 ```mermaid
 flowchart LR
     U["User"] --> H["llama.cpp Web UI / Agent Host"]
+    H --> B["ContextOS Host Bridge preflight"]
+    B --> H
     H <--> L["llama.cpp inference"]
     L <--> Q["Qwen3.6"]
     H <--> C["MCP client"]
@@ -143,25 +148,26 @@ config/agent.json
 config/server.json
 config/mcp.json
 config/llama-mcp.json
+config/bridge.json
 ```
 
 Edit `config/server.json` and point `executable` and `model` to your local files. Edit `config/mcp.json.projectRoot` for the repository exposed to the llama.cpp Web UI. Keep MCP mode `read-only` unless local mutation is intentional.
 
+Build the exact b10295 Web UI overlay once, or copy an already-built ignored `host-ui/` directory. See [Host Context Bridge](docs/HOST_CONTEXT_BRIDGE.md). To expose writes without shell commands, copy the fields from `config/mcp.trusted-local.example.json` into local `config/mcp.json`.
+
 ### 3. Diagnose and start
 
 ```text
-01_start_server.bat
-open http://127.0.0.1:8080
-04_health_check.bat
+START.bat
 ```
 
-`01_start_server.bat` passes the generated `config/llama-mcp.json` to llama.cpp `b10295+`. The host starts ContextOS over stdio. `02_start_agent.bat` remains an optional standalone CLI:
+`START.bat` is the one-click stack entrypoint. It starts the Host Context Bridge and llama.cpp with the generated `config/llama-mcp.json`, waits for both health surfaces, verifies the exact integrated UI marker and ContextOS tools through `/tools`, and opens the Web UI. In `trusted-local` mode it also requires `write_file` and `edit_file`. `02_start_agent.bat` remains an optional standalone CLI:
 
 ```bat
 02_start_agent.bat "C:\path\to\your\repository"
 ```
 
-Stop the managed server with `03_stop_server.bat`.
+Stop the managed bridge, server, and stdio MCP child with the one-click `STOP.bat`.
 
 ## Agent commands
 
@@ -276,6 +282,7 @@ The project treats context lifecycle as a first-class system problem: tool artif
 - **v0.1.2:** deterministic durability and Phase 1/2 core freeze
 - **v0.2.0:** Adaptive Semantic Context Planning research and threshold/semantic/hybrid benchmark
 - **v0.2.0-dev.6:** standards-based MCP capability server without host transcript ownership
+- **v0.2.0-dev.7:** bounded Host Context Bridge and exact llama.cpp b10295 Web UI request preflight
 - **v0.3.0:** tree-sitter, LSP, Git, and repository graph intelligence
 - **v0.4.0:** SQLite FTS5/BM25, graph retrieval, and optional semantic fallback
 - **v0.5.0:** clean-context investigator/architect/reviewer think tank
@@ -297,6 +304,8 @@ After v0.1.2, the 0.1.x line accepts only critical bugs, security fixes, regress
 | [Bounded semantic planning](docs/BOUNDED_SEMANTIC_PLANNING.md) | [Bounded semantic planning](docs/BOUNDED_SEMANTIC_PLANNING.zh-TW.md) |
 | [Execution contract](docs/EXECUTION_CONTRACT.md) | [Execution contract](docs/EXECUTION_CONTRACT.zh-TW.md) |
 | [MCP capability server](docs/MCP_SERVER.md) | [MCP capability server](docs/MCP_SERVER.zh-TW.md) |
+| [Host Context Bridge](docs/HOST_CONTEXT_BRIDGE.md) | [Host Context Bridge](docs/HOST_CONTEXT_BRIDGE.zh-TW.md) |
+| [Windows MCP timeout fix](docs/WINDOWS_MCP_TIMEOUT_FIX.md) | [Windows MCP timeout fix](docs/WINDOWS_MCP_TIMEOUT_FIX.zh-TW.md) |
 | [RFC-001: Adaptive Context Planning](docs/rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.md) | [RFC-001：自適應 Context Planning](docs/rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.zh-TW.md) |
 
 ## Development

@@ -33,16 +33,16 @@ Prompt Context   = 可拋棄的工作視圖
 
 ## 目前狀態
 
-**Experimental · v0.2.0-dev.6 MCP Capability Server · Windows-first**
+**Experimental · v0.2.0-dev.7 Host Context Bridge · Windows-first**
 
-Deterministic 控制組仍凍結在 [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2)，M4 experiment inputs 仍固定於 `aa59f4d`，D0-D6 dev.5 execution contract 完全不變。dev.6 在既有 tools、evidence、memory、artifacts 與 repository policy 外加上標準 stdio MCP capability boundary。llama.cpp 仍是 inference Runtime 與主要 Web UI／Agent Host；ContextOS 不擁有 transcript，也不代理 model traffic。
+Deterministic 控制組仍凍結在 [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2)，M4 experiment inputs 仍固定於 `aa59f4d`，D0-D6 dev.5 execution contract 完全不變。dev.6 加入標準 stdio MCP capability boundary；dev.7 加入 loopback Host Context Bridge 與狹窄的 llama.cpp b10295 Web UI overlay，讓每次 browser completion request 都在 inference 前接受 pressure check。Browser 仍擁有完整 transcript，llama.cpp 仍是 inference Runtime。
 
 已驗證環境：
 
 - llama.cpp `b10295` OpenAI-compatible chat/tool API；原生 MCP Host 相容性依 tagged source 與 exact protocol flow 驗證
 - Qwen3.6-35B-A3B GGUF
 - Windows 11、Node.js 24、NVIDIA CUDA
-- 64K active context、8K Agent output、4K reasoning budget
+- 64K active context、16K reserved/output budget、4K reasoning budget
 - v0.1.2 `read_file → artifact → read_artifact` 端到端 recovery path
 - 官方 MCP SDK negotiation 與 llama.cpp MCP `2024-11-05` protocol smoke
 
@@ -94,12 +94,17 @@ Standalone AgentRuntime 沒有綁死特定模型名稱，但 backend 必須回�
 - 預設 read-only tool surface 與顯式 `trusted-local` mutation mode
 - Repository map、project memory、working state 與 durable artifacts 的 bounded MCP resources
 - 由既有 ToolEvidenceManager 產生的 machine-readable MCP evidence envelope
+- 只綁定 loopback、具有 bounded request validation、exact-request cache 與 fail-closed preparation 的 Host Context Bridge
+- 保留 browser 完整歷史、只壓縮 model request 副本的官方 llama.cpp b10295 最小 Web UI overlay
+- 一鍵 Bridge／server／MCP／UI 生命週期與 integrated UI、health、mutation-tool checks
 
 ## 架構
 
 ```mermaid
 flowchart LR
     U["使用者"] --> H["llama.cpp Web UI / Agent Host"]
+    H --> B["ContextOS Host Bridge preflight"]
+    B --> H
     H <--> L["llama.cpp inference"]
     L <--> Q["Qwen3.6"]
     H <--> C["MCP client"]
@@ -143,25 +148,26 @@ config/agent.json
 config/server.json
 config/mcp.json
 config/llama-mcp.json
+config/bridge.json
 ```
 
 編輯 `config/server.json`，填入本機 `llama-server.exe` 與 GGUF 路徑；再以 `config/mcp.json.projectRoot` 選擇 llama.cpp Web UI 可存取的 repository。除非確實要允許本機 mutation，否則保持 `read-only`。
 
+第一次使用需建置 exact b10295 Web UI overlay，或複製已建置但由 Git 忽略的 `host-ui/`。詳見 [Host Context Bridge](docs/HOST_CONTEXT_BRIDGE.zh-TW.md)。若要開放寫入但不允許 shell commands，將 `config/mcp.trusted-local.example.json` 的設定套用到本機 `config/mcp.json`。
+
 ### 3. 診斷與啟動
 
 ```text
-01_start_server.bat
-開啟 http://127.0.0.1:8080
-04_health_check.bat
+START.bat
 ```
 
-`01_start_server.bat` 會把產生的 `config/llama-mcp.json` 傳給 llama.cpp `b10295+`，由 Host 透過 stdio 啟動 ContextOS。`02_start_agent.bat` 仍是選用的 standalone CLI：
+`START.bat` 是一鍵啟動整套 stack 的入口：它會啟動 Host Context Bridge，以產生的 `config/llama-mcp.json` 啟動 llama.cpp，等待兩個 health surfaces、驗證 exact integrated UI marker 與 `/tools` 的 ContextOS tools，最後開啟 Web UI。使用 `trusted-local` 時還會要求 `write_file` 與 `edit_file` 必須存在。`02_start_agent.bat` 仍是選用的 standalone CLI：
 
 ```bat
 02_start_agent.bat "C:\path\to\your\repository"
 ```
 
-使用 `03_stop_server.bat` 停止本專案管理的 server。
+使用一鍵 `STOP.bat` 停止本專案管理的 Bridge、server 與其 stdio MCP child。
 
 ## Agent 指令
 
@@ -276,6 +282,7 @@ ContextOS 不打算成為完整 IDE，也不是另一個通用 coding assistant�
 - **v0.1.2：**deterministic durability 與 Phase 1/2 core freeze
 - **v0.2.0：**Adaptive Semantic Context Planning 研究，以及 threshold／semantic／hybrid benchmark
 - **v0.2.0-dev.6：**不擁有 Host transcript 的標準 MCP capability server
+- **v0.2.0-dev.7：**bounded Host Context Bridge 與 exact llama.cpp b10295 Web UI request preflight
 - **v0.3.0：**tree-sitter、LSP、Git 與 repository graph intelligence
 - **v0.4.0：**SQLite FTS5/BM25、graph retrieval 與選用 semantic fallback
 - **v0.5.0：**乾淨 context 的 Investigator／Architect／Reviewer think tank
@@ -297,6 +304,8 @@ v0.1.2 後，0.1.x 只接受 critical bug、security fix、regression 與 docume
 | [Bounded semantic planning](docs/BOUNDED_SEMANTIC_PLANNING.md) | [Bounded semantic planning](docs/BOUNDED_SEMANTIC_PLANNING.zh-TW.md) |
 | [Execution contract](docs/EXECUTION_CONTRACT.md) | [Execution contract](docs/EXECUTION_CONTRACT.zh-TW.md) |
 | [MCP capability server](docs/MCP_SERVER.md) | [MCP capability server](docs/MCP_SERVER.zh-TW.md) |
+| [Host Context Bridge](docs/HOST_CONTEXT_BRIDGE.md) | [Host Context Bridge](docs/HOST_CONTEXT_BRIDGE.zh-TW.md) |
+| [Windows MCP timeout fix](docs/WINDOWS_MCP_TIMEOUT_FIX.md) | [Windows MCP timeout fix](docs/WINDOWS_MCP_TIMEOUT_FIX.zh-TW.md) |
 | [RFC-001: Adaptive Context Planning](docs/rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.md) | [RFC-001：自適應 Context Planning](docs/rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.zh-TW.md) |
 
 ## 開發

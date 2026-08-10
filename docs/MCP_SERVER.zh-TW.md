@@ -2,7 +2,7 @@
 
 繁體中文 · [English](MCP_SERVER.md)
 
-版本：0.2.0-dev.6
+版本：0.2.0-dev.7
 
 ## 定位
 
@@ -217,17 +217,19 @@ Diagnostics 只寫 stderr；stdout 完全保留給 MCP NDJSON frames。
 
 ## Context Policy Engine 邊界
 
-Frozen M4 planner identity 與 D0-D6 execution semantics 完全不變。它們仍作為 Context Policy Engine 存在，但這個 milestone 不把它接進 Host transcript：
+MCP server 仍不擁有 Host transcript。dev.7 另外加入只綁定 loopback、包住既有 ContextManager 的 Host Context Bridge adapter：
 
 ```text
 本版已實作：
 MCP Host -> MCP Capability Server -> tools/evidence/memory/repository
+llama.cpp Web UI request 副本 -> Host Context Bridge -> ContextManager -> prepared request
 
 本版未實作：
-MCP Host transcript -> ContextInventory -> D0-D6 改寫 Host context
+MCP server -> 暗中修改 browser transcript
+Host transcript -> M2-M6 planner/authorization/atomic-execution pipeline
 ```
 
-這能避免假裝 MCP server 擁有或能暗中改寫 llama.cpp conversation history。
+Browser 會保留完整 IndexedDB history。Bridge 只能替換單次 outgoing completion request 的 message representation；無法安全 preparation 時會 fail closed。詳見 [Host Context Bridge](HOST_CONTEXT_BRIDGE.zh-TW.md)。
 
 ## 驗證
 
@@ -239,4 +241,4 @@ node src/mcp-server.js --help
 
 測試涵蓋官方 SDK negotiation、llama.cpp `2024-11-05` initialize flow、精確 tool lists、resources、ToolRunner containment、durable evidence、artifact recovery、read-only mutation rejection、顯式 trusted-local、malformed calls、auxiliary corruption，以及 frozen M4 manifest。
 
-Windows Application Control 仍可能封鎖 `llama-server.exe` 本身。遇到時應依本機安全政策驗證或解除該可信 binary 的封鎖，不要全面關閉系統保護。
+Windows Application Control 仍可能封鎖 `llama-server.exe` 本身。遇到時 `START.bat` 會顯示簽章、Internet zone marker 與 Smart App Control 狀態。Smart App Control 沒有 per-app allow switch；應優先選擇 CA 簽署／具信譽的 build，或改用 WSL／container Runtime。關閉它是 system-wide security decision，本專案 scripts 絕不會自行執行。

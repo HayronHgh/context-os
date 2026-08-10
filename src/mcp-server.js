@@ -16,7 +16,7 @@ import { readJson } from "./utils.js";
 
 const sourceDirectory = path.dirname(fileURLToPath(import.meta.url));
 const applicationRoot = path.resolve(sourceDirectory, "..");
-const VERSION = "0.2.0-dev.6";
+const VERSION = "0.2.0-dev.7";
 
 export function parseArguments(argv) {
   const result = {};

@@ -4,6 +4,21 @@
 
 所有重要變更都會記錄於此。
 
+## [0.2.0-dev.7] - 2026-08-10
+
+### Bounded Host Context Bridge
+
+- 加入只綁定 loopback 的 HTTP preflight，接收每次 browser completion request 的副本，回傳 unchanged 或 prepared message array，不修改 browser IndexedDB history。
+- 以狹窄且有 anchor check 的 overlay 修改官方 llama.cpp b10295 `ChatService.sendMessage`，不再建立另一套 custom chat UI 或 inference proxy。
+- 在 browser 送出 `/v1/chat/completions` 前，重用 ContextManager pressure stages、tool-schema-aware accounting 與通過 schema 驗證的 Coding State Transfer。
+- 第一次接入時若 history 已過大，使用 bounded chunk state transfers 與 bounded merge calls，避免 compaction prompt 自己占滿整個模型 window。
+- Origin、request schema、state transfer 或 final pressure 任一不合法都 fail closed；llama.cpp native context shift 只保留為最後 fallback。
+- 加入 exact request SHA-256 identity、bounded memory cache、loopback／CORS／request-size restrictions 與 browser-history preservation telemetry。
+- 加入一鍵 Bridge -> llama.cpp -> MCP -> integrated UI 啟動，以及具有 exact PID identity 的停止流程。
+- 加入 explicit trusted-local config，在單一 project root 內公布 write/edit，同時保持 command execution 關閉。
+- 加入可重現的 llama.cpp b10295 Windows MCP named-pipe 相容性 patch 與 private runtime 建置說明，處理大型 JSON-RPC request。
+- 將已測 64K profile 調整為 16K reserved/output budget，並加入 188 項自動測試、production UI type check／build 驗證與雙語技術文件。
+
 ## [0.2.0-dev.6] - 2026-08-10
 
 ### Standards-based MCP Capability Server

@@ -2,7 +2,7 @@
 
 [繁體中文](TECHNICAL_REPORT.zh-TW.md) · English
 
-Version: 0.2.0-dev.6
+Version: 0.2.0-dev.7
 
 Status: Experimental research MVP
 
@@ -25,14 +25,18 @@ ContextOS implements the frozen first two phases of an external context runtime 
 - a standards-compliant stdio MCP server around existing repository, memory, and evidence capabilities
 - a default read-only capability surface plus explicit trusted-local mutation mode
 - bounded machine-readable MCP resources and evidence envelopes
+- a loopback Host Context Bridge that prepares copies of browser model requests
+- an exact llama.cpp b10295 Web UI overlay and one-click integrated lifecycle
 
 It does not yet implement AST/LSP graphs, semantic retrieval, a transactional memory database, multi-agent orchestration, a custom Web UI, or a strong process sandbox.
 
-### What dev.6 can do
+### What dev.7 can do
 
 An MCP Host can launch ContextOS for one selected project, negotiate tools/resources, read and search repository files through the existing ToolRunner, retrieve working/project memory, rebuild maps, and recover exact persisted tool evidence. In explicit `trusted-local` mode it can also write/edit files, update state, save episodes, and—only when separately enabled—run guarded commands. Every executed result uses the existing evidence threshold, artifact integrity metadata, and recovery path.
 
-llama.cpp remains the inference and interaction plane. Qwen3.6 remains the cognitive model. ContextOS neither proxies tokens nor owns the conversation. The frozen Context Policy Engine remains implemented but is not wired into the Host transcript by this milestone.
+llama.cpp remains the inference and interaction plane, and Qwen3.6 remains the cognitive model. The browser remains the authority for the complete conversation. Before each real browser completion, the separate Host Context Bridge can account for messages plus tool schemas, run isolated bounded state transfer when pressure crosses policy thresholds, and return a prepared request representation. It neither proxies the completion stream nor mutates the browser database.
+
+The 64K profile reserves 16K for output. Semantic preparation begins at 72% of the remaining 49,152-token input budget. Oversized first-use transcripts are partitioned into bounded state-transfer calls and merged through the same strict schema, preventing the compaction request from becoming a second context-overflow path. Unsafe or invalid preparation fails closed; llama.cpp native context shift remains a final safeguard.
 
 ## Implementation inventory
 
@@ -43,6 +47,10 @@ llama.cpp remains the inference and interaction plane. Qwen3.6 remains the cogni
 | `src/mcp-tools.js` | Existing-tool schema binding, mode gate, evidence result envelopes |
 | `src/mcp-resources.js` | Bounded read-only repository/memory/artifact resources |
 | `src/agent-runtime.js` | Model/tool loop, prompt reconstruction, persistence |
+| `src/state-transfer-compactor.js` | Strict bounded/chunked Coding State Transfer and repair |
+| `src/host-context-bridge.js` | Request validation, pressure preparation, SHA-256 cache identity |
+| `src/host-context-bridge-server.js` | Loopback HTTP, CORS allowlist, body limits, health and fail-closed errors |
+| `ui-overlay/contextos-bridge.service.ts` | Official b10295 Web UI request preflight adapter |
 | `src/config.js` | Durability defaults and startup invariants |
 | `src/context-messages.js` | Internal-to-model serialization boundary |
 | `src/context-unit.js` | Context Unit schema, enums, stable ID factory, validation |
