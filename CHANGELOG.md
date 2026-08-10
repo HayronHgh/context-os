@@ -15,6 +15,7 @@ All notable changes to this project will be documented here.
 - Add a responsive vanilla HTML/CSS/JS chat UI with live tool trace, explicit approvals, safe text rendering, and no browser-owned transcript.
 - Reject cross-site requests and untrusted Host headers; require JSON for mutation endpoints and ship a restrictive browser CSP.
 - Add one-click Windows gateway start/stop scripts and bilingual Gateway documentation.
+- Add `START_ALL.bat` and `STOP_ALL.bat` for ordered server/Gateway health-checked lifecycle management without launching a duplicate CLI AgentRuntime.
 - Keep llama.cpp inference-only and leave experimental D0-D6 interactive orchestration outside this milestone.
 
 ## [0.2.0-dev.5] - 2026-08-10

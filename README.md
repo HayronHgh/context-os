@@ -150,6 +150,16 @@ Edit `config/server.json` and point `executable` and `model` to your local files
 
 ### 3. Diagnose and start
 
+For normal browser use, start the complete local stack with one command:
+
+```bat
+START_ALL.bat "C:\path\to\your\repository"
+```
+
+The Gateway creates one AgentRuntime per browser session, so `START_ALL.bat` deliberately does not launch a duplicate terminal agent. Stop the complete managed stack with `STOP_ALL.bat`.
+
+The individual launchers remain available for diagnostics:
+
 ```text
 04_health_check.bat
 01_start_server.bat
@@ -162,7 +172,7 @@ The Gateway opens `http://127.0.0.1:8787`. To work on another repository:
 03_start_gateway.bat "C:\path\to\your\repository"
 ```
 
-For the terminal UI, use `02_start_agent.bat` with the same optional project argument. Stop the Gateway with `06_stop_gateway.bat`, and stop llama-server with `03_stop_server.bat`.
+For the terminal UI instead of the Browser, start only `01_start_server.bat`, then use `02_start_agent.bat` with the same optional project argument. Stop the Gateway with `06_stop_gateway.bat`, and stop llama-server with `03_stop_server.bat`.
 
 ## Agent commands
 

@@ -22,7 +22,15 @@ llama.cpp remains the inference backend. The Gateway does not proxy llama.cpp's 
 
 ## Start
 
-Start the model first:
+The normal one-click workflow is:
+
+```bat
+START_ALL.bat "C:\path\to\your\repository"
+```
+
+It starts llama-server, confirms that the Gateway will own one AgentRuntime per browser session, starts the Gateway, verifies both health endpoints, and opens the Browser. Use `STOP_ALL.bat` to stop the Gateway, its Runtime sessions, and llama-server in dependency-safe order.
+
+The individual workflow is also available. Start the model first:
 
 ```text
 01_start_server.bat
@@ -35,6 +43,8 @@ Then launch the browser runtime:
 ```
 
 This starts a loopback-only HTTP server at `http://127.0.0.1:8787` and opens the browser. Stop it with `06_stop_gateway.bat`.
+
+Do not launch `02_start_agent.bat` alongside the Gateway for the same project. That file is the alternative terminal UI; the Gateway already creates the AgentRuntime used by the Browser.
 
 The equivalent terminal command is:
 

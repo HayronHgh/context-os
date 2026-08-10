@@ -15,6 +15,7 @@
 - 新增 responsive vanilla HTML／CSS／JS chat UI，提供即時 tool trace、明確 approval、安全文字渲染，Browser 不持有 transcript。
 - 拒絕 cross-site request 與不可信 Host；mutation endpoint 強制 JSON，並加入嚴格 Browser CSP。
 - 新增 Windows 一鍵啟停 Gateway script 與雙語 Gateway 文件。
+- 新增 `START_ALL.bat` 與 `STOP_ALL.bat`，依序管理 server／Gateway lifecycle、驗證 health，且不重複啟動 CLI AgentRuntime。
 - llama.cpp 維持 inference-only；實驗中的 D0-D6 互動 orchestration 不在這個 milestone 內。
 
 ## [0.2.0-dev.5] - 2026-08-10

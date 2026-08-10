@@ -22,7 +22,15 @@ llama.cpp 仍是推論 backend。Gateway 不代理 llama.cpp 內建 UI，也不�
 
 ## 啟動
 
-先啟動模型：
+一般使用建議一鍵啟動：
+
+```bat
+START_ALL.bat "C:\path\to\your\repository"
+```
+
+它會依序啟動 llama-server、確認 Gateway 將為每個 Browser session 建立 AgentRuntime、啟動 Gateway、檢查兩個 health endpoint，最後開啟 Browser。使用 `STOP_ALL.bat` 依安全順序停止 Gateway、其 Runtime sessions 與 llama-server。
+
+也可以個別啟動。先啟動模型：
 
 ```text
 01_start_server.bat
@@ -35,6 +43,8 @@ llama.cpp 仍是推論 backend。Gateway 不代理 llama.cpp 內建 UI，也不�
 ```
 
 它會在 `http://127.0.0.1:8787` 啟動只接受 loopback 的 HTTP server，並開啟瀏覽器。使用 `06_stop_gateway.bat` 停止。
+
+不要針對同一個 project 同時啟動 `02_start_agent.bat` 與 Gateway。該檔案是替代用的 terminal UI；Browser 所需的 AgentRuntime 已由 Gateway 建立。
 
 等價的終端指令是：
 

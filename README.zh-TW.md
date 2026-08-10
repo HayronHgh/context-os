@@ -150,6 +150,16 @@ config/server.json
 
 ### 3. 診斷與啟動
 
+一般 Browser 使用可用一個指令啟動完整本機 stack：
+
+```bat
+START_ALL.bat "C:\path\to\your\repository"
+```
+
+Gateway 會為每個 Browser session 建立一個 AgentRuntime，因此 `START_ALL.bat` 刻意不再啟動重複的 terminal agent。使用 `STOP_ALL.bat` 一次停止完整 managed stack。
+
+個別啟動檔仍保留供診斷使用：
+
 ```text
 04_health_check.bat
 01_start_server.bat
@@ -162,7 +172,7 @@ Gateway 會開啟 `http://127.0.0.1:8787`。操作其他 repository：
 03_start_gateway.bat "C:\path\to\your\repository"
 ```
 
-若偏好終端 UI，可使用 `02_start_agent.bat`，同樣可傳入 project path。`06_stop_gateway.bat` 停止 Gateway，`03_stop_server.bat` 停止 llama-server。
+若偏好終端 UI 而非 Browser，請只啟動 `01_start_server.bat`，再使用 `02_start_agent.bat`；同樣可傳入 project path。`06_stop_gateway.bat` 停止 Gateway，`03_stop_server.bat` 停止 llama-server。
 
 ## Agent 指令
 
