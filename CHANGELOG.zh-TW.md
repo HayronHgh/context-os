@@ -4,6 +4,20 @@
 
 所有重要變更都會記錄於此。
 
+## [0.2.0-dev.6] - 2026-08-10
+
+### Standards-based MCP Capability Server
+
+- 關閉尚未 merge 的 custom Runtime Chat Gateway PR，讓 `main` 保持乾淨 dev.5 baseline；不需要 Gateway revert 或 history rewrite。
+- 使用固定版官方 TypeScript SDK 加入 host-independent stdio MCP server，並覆蓋 llama.cpp `b10295`／MCP `2024-11-05` 的精確相容性。
+- 重用既有 ToolRunner、MemoryStore、RepoMapper、ToolEvidenceManager、containment、command policy 與 artifact recovery path。
+- 預設只公布六個 read tools；只有顯式 `trusted-local` 才會讓 mutation／state tools 出現在 MCP surface。
+- 加入 bounded、machine-readable repository map、project memory、working state、artifact index 與 exact artifact recovery resources。
+- 回傳 Runtime-derived evidence envelope；oversized result 會 externalize，不會完整複製回 active model context。
+- Setup 產生分離的 MCP 與 llama.cpp Host configs；`01_start_server.bat` 傳入 `--mcp-servers-config`，但不啟用 llama.cpp built-in tools、`--agent` 或 browser MCP proxy。
+- 保留選用 standalone AgentRuntime CLI，以及所有 frozen M4／D0-D6 semantics。
+- 加入官方 Client protocol E2E、精確 tool/resource、containment、mutation、corruption、evidence 與 artifact recovery tests，並補齊雙語文件。
+
 ## [0.2.0-dev.5] - 2026-08-10
 
 ### Zero-mutation execution preparation

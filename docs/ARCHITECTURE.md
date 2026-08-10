@@ -45,19 +45,31 @@ Persistence and rendering are independent. Results at or below `artifactPersiste
 ## Components
 
 ```mermaid
-flowchart TD
-    CLI["CLI / index.js"] --> AR["AgentRuntime"]
-    AR --> CM["ContextManager"]
-    AR --> TR["ToolRunner"]
-    AR --> MS["MemoryStore"]
-    AR --> RM["RepoMapper"]
-    AR --> LC["LlamaClient"]
-    LC --> API["OpenAI-compatible API"]
-    API --> MODEL["Local model"]
+flowchart LR
+    HOST["llama.cpp Web UI / Agent Host"] <--> INF["llama.cpp inference"]
+    INF <--> MODEL["Qwen3.6"]
+    HOST <--> MCP["ContextOS MCP server"]
+    MCP --> TR["ToolRunner"]
+    MCP --> MS["MemoryStore / evidence"]
     TR --> REPO["Target repository"]
-    RM --> REPO
-    MS --> DISK[".qwen-agent/"]
+    CLI["Optional standalone CLI"] --> AR["AgentRuntime"]
+    AR --> INF
+    AR --> TR
+    AR --> MS
 ```
+
+### MCP capability server (`src/mcp-server.js`, `src/mcp-tools.js`, `src/mcp-resources.js`)
+
+- Uses the official MCP TypeScript SDK over stdio.
+- Binds one selected project root to one existing ToolRunner, MemoryStore, RepoMapper, and ToolEvidenceManager.
+- Advertises only read capabilities by default; mutation/state tools require explicit `trusted-local` mode.
+- Exposes bounded repository, memory, working-state, and artifact resources.
+- Reserves stdout for MCP frames and sends diagnostics only to stderr.
+- Does not call the model, own conversation history, proxy inference, or wire D0-D6 into the host transcript.
+
+### Host and model boundary
+
+llama.cpp owns the Web UI, conversation, reasoning/streaming path, and model invocation. Qwen3.6 proposes tool calls. ContextOS authorizes and executes only its advertised capabilities, then returns Runtime-derived evidence. This is a sibling integration (`llama.cpp <-> Qwen`, `llama.cpp <-> MCP <-> ContextOS`), not an inference chain through ContextOS.
 
 ### CLI (`src/index.js`)
 
@@ -230,4 +242,4 @@ v0.1.2 freezes the deterministic baseline. The 0.1.x line may still receive crit
 
 ## Portability
 
-The Node.js runtime uses built-in modules and relative paths. Windows management scripts are the tested control plane. The chat client is compatible with servers that implement the required OpenAI-style message and tool-call shapes; only llama.cpp + Qwen3.6 is currently validated end to end.
+The Node.js runtime uses ESM, the pinned official MCP SDK, and relative paths. Windows management scripts are the tested control plane; CI covers Windows and Ubuntu on Node 20 and 24. The standalone chat client accepts the required OpenAI-style message/tool-call shapes. The MCP server is host-independent stdio, with llama.cpp `b10295` + Qwen3.6 validated end to end at the protocol boundary.

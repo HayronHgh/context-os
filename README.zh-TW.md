@@ -4,7 +4,7 @@
 
 > **讓任務壽命不再受限於 context window 壽命。**
 
-ContextOS 是一個實驗性的本機 coding-agent 持久 context 與記憶 Runtime。它位於 OpenAI-compatible 本機模型服務之前，將容易消失的 Agent 狀態外部化，並在 conversation 過大時重新組成可工作的 context。
+ContextOS 是一個實驗性的本機 coding-agent 持久 context、記憶與 MCP capability Runtime。llama.cpp 仍負責 inference 與 interaction；ContextOS 將容易消失的 state 外部化，並透過標準 local MCP 提供受 policy 控制的 repository、memory 與 evidence capabilities。
 
 [![CI](https://github.com/HayronHgh/context-os/actions/workflows/ci.yml/badge.svg)](https://github.com/HayronHgh/context-os/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -33,19 +33,20 @@ Prompt Context   = 可拋棄的工作視圖
 
 ## 目前狀態
 
-**Experimental · v0.2.0-dev.5 D0-D6 Execution Finalization · Windows-first**
+**Experimental · v0.2.0-dev.6 MCP Capability Server · Windows-first**
 
-Deterministic 控制組仍凍結在 [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2)，M4 experiment inputs 則固定於 `aa59f4d`。v0.2 開發線目前已到 model-free execution finalization：D5 atomic commit exact validated context，D6 再綁定該 commit 的 generation、以原有 registry rebuild Context Inventory，並使用相同 canonical ContextManager estimator 與 tool envelope 回報 signed actual reduction。Artifact creation 與 memory promotion 仍不存在。
+Deterministic 控制組仍凍結在 [`v0.1.2`](https://github.com/HayronHgh/context-os/tree/v0.1.2)，M4 experiment inputs 仍固定於 `aa59f4d`，D0-D6 dev.5 execution contract 完全不變。dev.6 在既有 tools、evidence、memory、artifacts 與 repository policy 外加上標準 stdio MCP capability boundary。llama.cpp 仍是 inference Runtime 與主要 Web UI／Agent Host；ContextOS 不擁有 transcript，也不代理 model traffic。
 
 已驗證環境：
 
-- llama.cpp server 與 OpenAI-compatible chat/tool API
+- llama.cpp `b10295` OpenAI-compatible chat/tool API；原生 MCP Host 相容性依 tagged source 與 exact protocol flow 驗證
 - Qwen3.6-35B-A3B GGUF
 - Windows 11、Node.js 24、NVIDIA CUDA
 - 64K active context、8K Agent output、4K reasoning budget
 - v0.1.2 `read_file → artifact → read_artifact` 端到端 recovery path
+- 官方 MCP SDK negotiation 與 llama.cpp MCP `2024-11-05` protocol smoke
 
-Runtime 沒有綁死特定模型名稱，但 backend 必須回傳 OpenAI-style chat messages 與 tool calls。其他模型與 server 尚未納入正式測試矩陣。
+Standalone AgentRuntime 沒有綁死特定模型名稱，但 backend 必須回傳 OpenAI-style chat messages 與 tool calls。MCP server 是 host-independent stdio；llama.cpp `b10295` 是目前 compatibility target。其他 Host／model 組合尚未納入正式測試矩陣。
 
 ## 功能
 
@@ -89,24 +90,23 @@ Runtime 沒有綁死特定模型名稱，但 backend 必須回傳 OpenAI-style c
 - 寫檔、編輯與 shell command 人工確認
 - 破壞性命令 guardrails
 - Windows setup、啟停、診斷與可續傳模型下載
-- Runtime 零 npm dependency
+- 使用固定版官方 TypeScript SDK 的標準 MCP stdio server
+- 預設 read-only tool surface 與顯式 `trusted-local` mutation mode
+- Repository map、project memory、working state 與 durable artifacts 的 bounded MCP resources
+- 由既有 ToolEvidenceManager 產生的 machine-readable MCP evidence envelope
 
 ## 架構
 
 ```mermaid
-flowchart TD
-    U["使用者 / CLI"] --> A["Agent Runtime"]
-    A --> C["Context Manager"]
-    A --> T["Tool Runner"]
-    A --> M["Memory Store"]
-    A --> R["Repository Mapper"]
-    A --> L["OpenAI-compatible Client"]
-    L --> S["本機模型服務"]
-    S --> Q["本機 Coding Model"]
+flowchart LR
+    U["使用者"] --> H["llama.cpp Web UI / Agent Host"]
+    H <--> L["llama.cpp inference"]
+    L <--> Q["Qwen3.6"]
+    H <--> C["MCP client"]
+    C <--> M["ContextOS MCP server"]
+    M --> T["ToolRunner / policy"]
+    M --> D["Memory / evidence / artifacts"]
     T --> P["目標 Repository"]
-    R --> P
-    M --> D[".qwen-agent/"]
-    C --> A
 ```
 
 `.qwen-agent` 目錄名稱為相容初版 MVP 而保留；穩定版前預計改為中性 namespace。
@@ -141,19 +141,21 @@ npm run setup
 ```text
 config/agent.json
 config/server.json
+config/mcp.json
+config/llama-mcp.json
 ```
 
-編輯 `config/server.json`，填入本機 `llama-server.exe` 與 GGUF 路徑。`config/agent.json.model` 必須等於 `config/server.json.alias`。
+編輯 `config/server.json`，填入本機 `llama-server.exe` 與 GGUF 路徑；再以 `config/mcp.json.projectRoot` 選擇 llama.cpp Web UI 可存取的 repository。除非確實要允許本機 mutation，否則保持 `read-only`。
 
 ### 3. 診斷與啟動
 
 ```text
-04_health_check.bat
 01_start_server.bat
-02_start_agent.bat
+開啟 http://127.0.0.1:8080
+04_health_check.bat
 ```
 
-操作其他 repository：
+`01_start_server.bat` 會把產生的 `config/llama-mcp.json` 傳給 llama.cpp `b10295+`，由 Host 透過 stdio 啟動 ContextOS。`02_start_agent.bat` 仍是選用的 standalone CLI：
 
 ```bat
 02_start_agent.bat "C:\path\to\your\repository"
@@ -177,18 +179,23 @@ config/server.json
 
 ## 工具
 
-模型可要求 12 個由 Runtime 管理的工具：
+Read-only MCP mode 公布六個 Runtime-managed tools：
 
 ```text
 read_file             file_glob_search
-grep_search           write_file
-edit_file             run_command
-build_repo_map        read_working_state
-read_artifact         update_working_state
-save_episode          get_datetime
+grep_search           read_working_state
+read_artifact         get_datetime
 ```
 
-寫檔、編輯與 shell command 預設需要人工同意。
+顯式 `trusted-local` mode 才會再公布六個 mutation／state tools：
+
+```text
+write_file            edit_file
+run_command           build_repo_map
+update_working_state  save_episode
+```
+
+Standalone CLI 仍使用互動 approval。MCP stdio 沒有互動 approval channel，因此 read-only 直接不公布 mutations；`trusted-local` 則是顯式 non-interactive auto-approval。所有 call 仍通過既有 containment、command policy 與 evidence handling。
 
 ## 持久狀態
 
@@ -240,6 +247,7 @@ ContextOS 在 55% 不會壓縮沒有 durable artifact 的 tool evidence，在 65
 - `.qwen-agent` 可能包含 source code、command output、路徑或 secrets。
 - 不可信程式碼請使用 VM、container 或拋棄式帳號。
 - 預設 server 只監聽 localhost；若要開放 LAN，必須另行加入 authentication、TLS、firewall 與更完整 threat model。
+- MCP 預設 read-only；不可信內容不可啟用 `trusted-local`、llama.cpp `--agent`、內建 tools 或 MCP CORS proxy。
 
 在重要 repository 使用前，請先閱讀 [docs/SECURITY.zh-TW.md](docs/SECURITY.zh-TW.md)。
 
@@ -257,6 +265,7 @@ ContextOS 不打算成為完整 IDE，也不是另一個通用 coding assistant�
 - Regex symbol extraction，不是 AST/LSP intelligence
 - Episodes 只取最近項目
 - Chat completion 尚未 streaming
+- MCP transport 目前只有 stdio；沒有 remote/LAN MCP service 或 authentication
 - File-based persistence，沒有 transaction database
 - 沒有強 OS sandbox
 - 單一 Coordinator，尚無多 Agent 智庫
@@ -266,6 +275,7 @@ ContextOS 不打算成為完整 IDE，也不是另一個通用 coding assistant�
 
 - **v0.1.2：**deterministic durability 與 Phase 1/2 core freeze
 - **v0.2.0：**Adaptive Semantic Context Planning 研究，以及 threshold／semantic／hybrid benchmark
+- **v0.2.0-dev.6：**不擁有 Host transcript 的標準 MCP capability server
 - **v0.3.0：**tree-sitter、LSP、Git 與 repository graph intelligence
 - **v0.4.0：**SQLite FTS5/BM25、graph retrieval 與選用 semantic fallback
 - **v0.5.0：**乾淨 context 的 Investigator／Architect／Reviewer think tank
@@ -286,16 +296,17 @@ v0.1.2 後，0.1.x 只接受 critical bug、security fix、regression 與 docume
 | [Compaction authorization](docs/COMPACTION_VALIDATION.md) | [Compaction authorization](docs/COMPACTION_VALIDATION.zh-TW.md) |
 | [Bounded semantic planning](docs/BOUNDED_SEMANTIC_PLANNING.md) | [Bounded semantic planning](docs/BOUNDED_SEMANTIC_PLANNING.zh-TW.md) |
 | [Execution contract](docs/EXECUTION_CONTRACT.md) | [Execution contract](docs/EXECUTION_CONTRACT.zh-TW.md) |
+| [MCP capability server](docs/MCP_SERVER.md) | [MCP capability server](docs/MCP_SERVER.zh-TW.md) |
 | [RFC-001: Adaptive Context Planning](docs/rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.md) | [RFC-001：自適應 Context Planning](docs/rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.zh-TW.md) |
 
 ## 開發
 
 ```powershell
-node --test
+npm ci
+npm test
 node src/index.js --help
+node src/mcp-server.js --help
 ```
-
-Runtime 只使用 Node.js 內建模組。
 
 ## License
 

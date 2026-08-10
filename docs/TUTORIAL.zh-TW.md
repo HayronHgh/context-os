@@ -35,7 +35,7 @@ cd context-os
 .\00_setup.bat
 ```
 
-Setup 會把已提交的 examples 複製成 Git 忽略的本機 config files。
+Setup 會安裝 lockfile 固定的 MCP dependencies、把已提交 examples 複製成 Git 忽略的本機 config files，並以絕對 Node／ContextOS 路徑產生 Cursor-compatible `config/llama-mcp.json`。
 
 ## 3. 設定 server
 
@@ -95,24 +95,48 @@ artifactPersistenceChars <= staleToolCompressionChars <= maxToolOutputChars
 
 Durability 順序錯誤時 Runtime 會拒絕啟動，不允許 evidence 在持久化前就變成可 prune。
 
+主要 MCP integration 在獨立的 `config/mcp.json` 設定：
+
+```json
+{
+  "projectRoot": "C:\\Projects\\my-app",
+  "mode": "read-only",
+  "maximumResourceBytes": 131072,
+  "security": {
+    "allowCommands": false,
+    "commandTimeoutSeconds": 120
+  }
+}
+```
+
+這份檔案控制 capabilities，不控制 inference。Orientation／分析保持 `read-only`；只有 selected local repository 可在無 interactive approval 的情況下修改時，才使用 `trusted-local`。
+
 ## 5. 診斷與啟動
 
 依序執行：
 
 ```text
-04_health_check.bat
 01_start_server.bat
 ```
 
-Server 會在背景執行，log 寫入 `logs/`，managed PID 放在 `runtime/`。
+Server 會在背景執行，log 寫入 `logs/`，managed PID 放在 `runtime/`。`01_start_server.bat` 會把 `config/llama-mcp.json` 傳給 llama.cpp，由它把 ContextOS 啟動成標準 stdio child process。
 
-看到 ready health response 後執行：
+看到 ready health response 後，開啟主要 Web UI，再執行 health check：
+
+```text
+http://127.0.0.1:8080
+04_health_check.bat
+```
+
+Health check 會列出 llama.cpp 回報的 MCP tools。預設目標來自 `config/mcp.json.projectRoot`。
+
+Standalone AgentRuntime CLI 仍可選用：
 
 ```text
 02_start_agent.bat
 ```
 
-預設目標是內附 `workspace/`。指定其他 repository：
+只替 standalone CLI 指定其他 repository：
 
 ```bat
 02_start_agent.bat "C:\Projects\my-app"
@@ -130,11 +154,13 @@ Runtime 會在 selected repository 建立 `.qwen-agent/`。請將自動產生狀
 
 ## 7. Approval prompts
 
-寫入、exact edit 或 command 前，CLI 會詢問：
+寫入、exact edit 或 command 前，standalone CLI 會詢問：
 
 ```text
 Approve edit_file: src/example.js? [y/N]
 ```
+
+MCP stdio 沒有 interactive approval channel。預設 read-only mode 不公布 mutation tools；顯式 `trusted-local` 才會 auto-approve ToolRunner mutations，但 path containment、destructive-command checks、timeouts 與 evidence creation 仍然有效。
 
 只有受控環境才使用 `--yes`：
 

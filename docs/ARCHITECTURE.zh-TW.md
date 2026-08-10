@@ -45,19 +45,31 @@ Persistence 與 rendering 彼此獨立。小於等於 `artifactPersistenceChars`
 ## 元件
 
 ```mermaid
-flowchart TD
-    CLI["CLI / index.js"] --> AR["AgentRuntime"]
-    AR --> CM["ContextManager"]
-    AR --> TR["ToolRunner"]
-    AR --> MS["MemoryStore"]
-    AR --> RM["RepoMapper"]
-    AR --> LC["LlamaClient"]
-    LC --> API["OpenAI-compatible API"]
-    API --> MODEL["本機模型"]
+flowchart LR
+    HOST["llama.cpp Web UI / Agent Host"] <--> INF["llama.cpp inference"]
+    INF <--> MODEL["Qwen3.6"]
+    HOST <--> MCP["ContextOS MCP server"]
+    MCP --> TR["ToolRunner"]
+    MCP --> MS["MemoryStore / evidence"]
     TR --> REPO["目標 Repository"]
-    RM --> REPO
-    MS --> DISK[".qwen-agent/"]
+    CLI["選用 standalone CLI"] --> AR["AgentRuntime"]
+    AR --> INF
+    AR --> TR
+    AR --> MS
 ```
+
+### MCP Capability Server（`src/mcp-server.js`、`src/mcp-tools.js`、`src/mcp-resources.js`）
+
+- 透過 stdio 使用官方 MCP TypeScript SDK。
+- 把一個 selected project root 綁定到一組既有 ToolRunner、MemoryStore、RepoMapper 與 ToolEvidenceManager。
+- 預設只公布 read capabilities；mutation／state tools 必須顯式選擇 `trusted-local`。
+- 提供 bounded repository、memory、working-state 與 artifact resources。
+- stdout 只保留 MCP frames；diagnostics 只寫 stderr。
+- 不呼叫模型、不擁有 conversation history、不代理 inference，也不把 D0-D6 接進 Host transcript。
+
+### Host 與 model 邊界
+
+llama.cpp 擁有 Web UI、conversation、reasoning／streaming 路徑與 model invocation。Qwen3.6 提議 tool calls；ContextOS 只授權並執行已公布 capabilities，再回傳 Runtime-derived evidence。這是同層整合（`llama.cpp <-> Qwen`、`llama.cpp <-> MCP <-> ContextOS`），不是讓 inference 穿過 ContextOS 的串接。
 
 ### CLI（`src/index.js`）
 
@@ -230,4 +242,4 @@ v0.1.2 凍結 deterministic baseline。0.1.x 仍可接受 critical bug、securit
 
 ## 可攜性
 
-Node.js Runtime 只使用內建模組與相對路徑。Windows 管理腳本是目前驗證過的 control plane。Chat client 可連接實作必要 OpenAI-style message/tool-call shape 的 server；目前只有 llama.cpp + Qwen3.6 完成端到端驗證。
+Node.js Runtime 使用 ESM、固定版官方 MCP SDK 與相對路徑。Windows 管理腳本是目前驗證過的 control plane；CI 覆蓋 Windows／Ubuntu 與 Node 20／24。Standalone chat client 可連接必要 OpenAI-style message/tool-call shape；MCP server 則是 host-independent stdio，並已在 protocol boundary 驗證 llama.cpp `b10295` + Qwen3.6。

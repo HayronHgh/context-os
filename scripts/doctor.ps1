@@ -18,6 +18,7 @@ $Executable = Resolve-ProjectPath $Config.executable
 $Model = Resolve-ProjectPath $Config.model
 $Node = Get-Command node -ErrorAction SilentlyContinue
 $NvidiaSmi = Get-Command nvidia-smi -ErrorAction SilentlyContinue
+$McpConfigPath = Join-Path $ProjectRoot 'config\llama-mcp.json'
 
 Write-Host 'Qwen Context OS doctor' -ForegroundColor Cyan
 Write-Host "Project: $ProjectRoot"
@@ -46,3 +47,13 @@ try {
 }
 
 Write-Host "Server config: ctx=$($Config.contextSize), output=$($Config.predict), reasoning-budget=$($Config.reasoningBudget), slots=$($Config.parallel), KV=$($Config.cacheTypeK)/$($Config.cacheTypeV), vision=$($Config.vision)"
+Write-Host "MCP config: $(if (Test-Path -LiteralPath $McpConfigPath) { 'OK' } else { 'MISSING - run 00_setup.bat' }) - $McpConfigPath"
+if (Test-Path -LiteralPath $McpConfigPath) {
+    try {
+        $Tools = Invoke-RestMethod -Uri "http://$($Config.host):$($Config.port)/tools" -TimeoutSec 3
+        $Names = @($Tools | ForEach-Object { $_.function.name })
+        Write-Host "MCP tools: $($Names -join ', ')" -ForegroundColor Green
+    } catch {
+        Write-Host "MCP tools: unavailable ($($_.Exception.Message))" -ForegroundColor Yellow
+    }
+}

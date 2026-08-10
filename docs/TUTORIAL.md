@@ -35,7 +35,7 @@ cd context-os
 .\00_setup.bat
 ```
 
-Setup copies committed examples to ignored local config files.
+Setup installs the locked MCP dependencies, copies committed examples to ignored local config files, and generates a Cursor-compatible `config/llama-mcp.json` with absolute Node/ContextOS paths.
 
 ## 3. Configure the server
 
@@ -95,24 +95,48 @@ artifactPersistenceChars <= staleToolCompressionChars <= maxToolOutputChars
 
 The runtime refuses invalid durability ordering rather than allowing evidence to become prunable before it is persistent.
 
+Configure the primary MCP integration separately in `config/mcp.json`:
+
+```json
+{
+  "projectRoot": "C:\\Projects\\my-app",
+  "mode": "read-only",
+  "maximumResourceBytes": 131072,
+  "security": {
+    "allowCommands": false,
+    "commandTimeoutSeconds": 120
+  }
+}
+```
+
+This file controls capabilities, not inference. Keep `read-only` for orientation and analysis. Use `trusted-local` only when the selected local repository may be changed without an interactive approval prompt.
+
 ## 5. Diagnose and start
 
 Run:
 
 ```text
-04_health_check.bat
 01_start_server.bat
 ```
 
-The server runs in the background. Logs are written to `logs/`, and the managed PID is stored under `runtime/`.
+The server runs in the background. Logs are written to `logs/`, and the managed PID is stored under `runtime/`. `01_start_server.bat` passes `config/llama-mcp.json` to llama.cpp, which launches ContextOS as a standard stdio child process.
 
-Wait for a ready health response, then run:
+Wait for a ready health response, open the primary Web UI, and then run the health check:
+
+```text
+http://127.0.0.1:8080
+04_health_check.bat
+```
+
+The health check lists the MCP tools reported by llama.cpp. The default target comes from `config/mcp.json.projectRoot`.
+
+The standalone AgentRuntime CLI remains optional:
 
 ```text
 02_start_agent.bat
 ```
 
-The default target is the bundled `workspace/`. To select a repository:
+To select a different repository only for the standalone CLI:
 
 ```bat
 02_start_agent.bat "C:\Projects\my-app"
@@ -130,11 +154,13 @@ The runtime creates `.qwen-agent/` inside the selected repository. Add the gener
 
 ## 7. Approval prompts
 
-Before writes, exact edits, or commands, the CLI asks:
+Before writes, exact edits, or commands, the standalone CLI asks:
 
 ```text
 Approve edit_file: src/example.js? [y/N]
 ```
+
+MCP stdio has no interactive approval channel. Its default read-only mode does not advertise mutation tools. Explicit `trusted-local` mode auto-approves ToolRunner mutations while retaining path containment, destructive-command checks, timeouts, and evidence creation.
 
 Use `--yes` only in a controlled environment:
 

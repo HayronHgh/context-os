@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "context-os": {
+      "command": "node",
+      "args": [
+        "C:\\path\\to\\context-os\\src\\mcp-server.js",
+        "--config",
+        "C:\\path\\to\\context-os\\config\\mcp.json"
+      ],
+      "cwd": "C:\\path\\to\\context-os",
+      "timeout_ms": 30000
+    }
+  }
+}

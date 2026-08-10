@@ -2,7 +2,7 @@
 
 繁體中文 · [English](TECHNICAL_REPORT.md)
 
-版本：0.2.0-dev.5
+版本：0.2.0-dev.6
 
 狀態：Experimental Research MVP
 
@@ -22,14 +22,26 @@ ContextOS 實作本機 coding agent 外部 Context Runtime 已凍結的前兩個
 - Windows lifecycle 與 diagnostics scripts
 - frozen benchmark manifest 與 oracle-backed fixture
 - 經驗證的 stable-ID Context Unit 與 bounded observational Context Inventory
+- 包裝既有 repository、memory、evidence capabilities 的標準 stdio MCP server
+- 預設 read-only capability surface 與顯式 trusted-local mutation mode
+- Bounded、machine-readable MCP resources 與 evidence envelopes
 
 尚未實作 AST/LSP graph、semantic retrieval、transactional memory database、多 Agent orchestration、自製 Web UI 或強 process sandbox。
+
+### dev.6 可以做什麼
+
+MCP Host 可為一個 selected project 啟動 ContextOS、negotiation tools/resources、透過既有 ToolRunner 讀取與搜尋 repository、取得 working/project memory、重建 map，並恢復 exact persisted tool evidence。只有顯式 `trusted-local` 模式才能 write/edit files、更新 state、保存 episodes，且 `run_command` 還必須另行開啟。每個已執行 result 都沿用 evidence threshold、artifact integrity metadata 與 recovery path。
+
+llama.cpp 仍是 inference 與 interaction plane，Qwen3.6 仍是 cognitive model。ContextOS 不代理 tokens，也不擁有 conversation。Frozen Context Policy Engine 仍完整存在，但本 milestone 不把它接進 Host transcript。
 
 ## 實作清單
 
 | 模組 | 責任 |
 | --- | --- |
 | `src/index.js` | CLI、設定、health check、approval、指令 |
+| `src/mcp-server.js` | stdio MCP entrypoint、capability 設定與 Runtime composition |
+| `src/mcp-tools.js` | 既有 tool schema binding、mode gate 與 evidence result envelope |
+| `src/mcp-resources.js` | Bounded read-only repository／memory／artifact resources |
 | `src/agent-runtime.js` | Model/tool loop、prompt reconstruction、持久化 |
 | `src/config.js` | Durability defaults 與 startup invariants |
 | `src/context-messages.js` | Internal-to-model serialization boundary |
@@ -60,11 +72,12 @@ ContextOS 實作本機 coding agent 外部 Context Runtime 已凍結的前兩個
 | `src/state-transfer.js` | 嚴格 state-transfer parsing 與 schema validation |
 | `src/utils.js` | Atomic I/O、path checks、IDs、token estimate |
 
-核心 Runtime 約一千行、使用 ESM 且零第三方 dependency。PowerShell scripts 管理 setup、server start/stop、diagnostics 與 model download。
+核心使用 ESM JavaScript。MCP boundary 固定官方 MCP TypeScript SDK 與 Zod；repository、memory、evidence、planning 與 execution 邏輯仍由專案本身掌控。PowerShell scripts 管理 setup、dependency installation、Host 設定、server start/stop、diagnostics 與 model download。
 
 ## 技術
 
 - Node.js 20+ 與 ECMAScript Modules
+- 官方 `@modelcontextprotocol/sdk` 1.30.0 stdio transport 與 Zod 4.4.3 schema validation
 - 內建 `fetch`、`AbortController`、`readline`、`fs`、`path`、`child_process`
 - OpenAI-style chat completions 與 JSON Schema function tools
 - llama.cpp server 作為已驗證 backend
@@ -111,6 +124,8 @@ Runtime 從 current state、project memory、recent episodes 與有上限的 rep
 - Artifact read 拒絕 path input、directory-junction escape 與 integrity mismatch。
 - Scan 不跟隨 symbolic link。
 - Mutation tools 預設需要 approval。
+- MCP 預設只公布 read tools；mutation tools 需要顯式 `trusted-local`。
+- stdio 沒有 interactive approval channel，因此 read-only／trusted-local 在 launch 前決定，否則 fail closed。
 - 常見 destructive commands 會被拒絕。
 - Server example 只綁 localhost。
 
@@ -118,7 +133,9 @@ Runtime 從 current state、project memory、recent episodes 與有上限的 rep
 
 ## 驗證
 
-目前共有 35 個 invariant tests，涵蓋 durability ordering、小／中／大型 evidence、exact artifact recovery 與 SHA-256 failure、具有 recovery gate 的 GC/exchange eviction、runtime metadata serialization、observability counters、latest-N-valid episodes、可恢復的 repo-map corruption、tool-schema accounting、threshold 行為、state-transfer validation/retry、lexical 與 symlink/junction containment、fail-loud working-state corruption 與 destructive-command denial。只有 host OS 禁止建立 file symlink 時才條件式跳過該項；Windows junction paths 仍會測試。
+測試涵蓋 durability ordering、小／中／大型 evidence、exact artifact recovery 與 SHA-256 failure、具有 recovery gate 的 GC/exchange eviction、runtime metadata serialization、observability counters、latest-N-valid episodes、可恢復的 repo-map corruption、tool-schema accounting、threshold 行為、state-transfer validation/retry、lexical 與 symlink/junction containment、fail-loud working-state corruption 與 destructive-command denial。只有 host OS 禁止建立 file symlink 時才條件式跳過該項；Windows junction paths 仍會測試。
+
+dev.6 MCP suite 也會以官方 SDK client 連接真實 stdio process，檢查精確 mode-dependent tool list 與 resource contracts，證明 `read_file` 仍經 containment/evidence、exact artifact 可恢復、malformed／unknown／mutation calls 會拒絕，並送出 llama.cpp `b10295` 使用的相同 MCP `2024-11-05` initialize flow。
 
 v0.1.2 release candidate 已以 llama.cpp + Qwen3.6 完成端到端 recovery smoke test：模型呼叫 `read_file`，取得 14,116-character exact persisted artifact 的 bounded representation，再依 ID 呼叫 `read_artifact`，最後回傳指定 success marker。驗證 profile 使用 64K context、8K Agent output 與 4K reasoning budget。教程中的 32K 是故障排除 fallback，不是該次驗證配置。
 
@@ -135,10 +152,11 @@ v0.1.2 release candidate 已以 llama.cpp + Qwen3.6 完成端到端 recovery smo
 - Token estimate 已包含 tools 與固定 overhead，但仍為 tokenizer 近似值。
 - Repository symbol 由 regex 產生。
 - Episodes 與 artifacts 依 latest valid recency 選擇，不含 semantic relevance。
-- Response 尚未 streaming。
+- 選用 standalone CLI 使用 non-streaming completion；Web UI streaming 由 llama.cpp 擁有。
 - State extraction 部分依賴模型主動性。
 - Shared project state 沒有 cross-process lock。
 - 只有 Windows 管理環境完成驗證。
+- MCP transport 只有 local stdio；沒有 remote authentication 或 LAN service。
 
 ## Phase 1/2 Freeze 與下一階段
 
@@ -146,4 +164,4 @@ v0.1.2 凍結 deterministic Phase 1/2 baseline。後續 0.1.x 只處理 critical
 
 v0.2.0 保留給 **Adaptive Semantic Context Planning**：token pressure 決定何時可能需要 intervention，task semantics 提議什麼重要，凍結的 runtime invariants 決定哪些 action 合法。第一個 benchmark 應比較 threshold、pure semantic 與 hybrid planners，不能改動 v0.1.2 control group。
 
-`0.2.0-dev.1` 完成 M0/M1，`0.2.0-dev.2` 完成 strict proposal protocol，`0.2.0-dev.3` 完成 deterministic Runtime authorization，`0.2.0-dev.4` 完成 bounded Qwen proposal generation。Dev.5 D0-D6 現在完成 current-source recovery proof、strict preflight、immutable candidate generation／validation、model-free atomic execution、existing-registry inventory rebuild，以及 canonical signed post-commit accounting。D5 保存 pre-commit ContextManager breakdown 與 tool-envelope identity；D6 綁定 committed context generation、rebuild stable units／lifecycles，並將 actual 與 potential reduction 分開回報。M4 experiment identity 持續由 hash 固定；artifact write 與 memory promotion 仍不存在。實作契約記錄於 [CompactionPlan Protocol](COMPACTION_PLAN_PROTOCOL.zh-TW.md)、[Compaction Authorization](COMPACTION_VALIDATION.zh-TW.md)、[Bounded Semantic Planning](BOUNDED_SEMANTIC_PLANNING.zh-TW.md) 與 [Execution Contract](EXECUTION_CONTRACT.zh-TW.md)；完整 threat boundaries 與 gates 定義於 [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.zh-TW.md)。
+`0.2.0-dev.1` 完成 M0/M1，`0.2.0-dev.2` 完成 strict proposal protocol，`0.2.0-dev.3` 完成 deterministic Runtime authorization，`0.2.0-dev.4` 完成 bounded Qwen proposal generation。Dev.5 D0-D6 完成 current-source recovery proof、strict preflight、immutable candidate generation／validation、model-free atomic execution、inventory rebuild 與 signed post-commit accounting。Dev.6 只加入 MCP capability plane，不修改上述 files 或 semantics。M4 identity 持續 hash-pinned，Host context orchestration 仍是獨立的未來 integration 問題。請參閱 [MCP Capability Server](MCP_SERVER.zh-TW.md)、[Execution Contract](EXECUTION_CONTRACT.zh-TW.md) 與 [RFC-001](rfcs/RFC-001-ADAPTIVE-CONTEXT-PLANNING.zh-TW.md)。

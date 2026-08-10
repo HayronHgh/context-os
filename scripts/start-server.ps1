@@ -29,6 +29,7 @@ $LogDir = Join-Path $ProjectRoot 'logs'
 $PidFile = Join-Path $RuntimeDir 'llama-server.pid'
 $StdoutLog = Join-Path $LogDir 'llama-server.stdout.log'
 $StderrLog = Join-Path $LogDir 'llama-server.stderr.log'
+$McpConfig = Join-Path $ProjectRoot 'config\llama-mcp.json'
 
 New-Item -ItemType Directory -Force -Path $RuntimeDir, $LogDir | Out-Null
 
@@ -85,6 +86,10 @@ $Arguments = @(
 if ($Config.vision) {
     $Arguments += @('--mmproj', (Quote-Argument $Mmproj))
 }
+if (Test-Path -LiteralPath $McpConfig -PathType Leaf) {
+    $Arguments += @('--mcp-servers-config', (Quote-Argument $McpConfig))
+    Write-Host "MCP: ContextOS capability server ($McpConfig)" -ForegroundColor Cyan
+}
 
 Write-Host 'Starting llama-server in the background...' -ForegroundColor Cyan
 $Process = Start-Process -FilePath $Executable -ArgumentList $Arguments -WorkingDirectory $LlamaRoot `
@@ -106,7 +111,7 @@ while ((Get-Date) -lt $Deadline) {
         $Health = Invoke-RestMethod -Uri "http://$($Config.host):$($Config.port)/health" -TimeoutSec 3
         Write-Host "Ready: $($Health | ConvertTo-Json -Compress)" -ForegroundColor Green
         Write-Host "Web UI: http://$($Config.host):$($Config.port)"
-        Write-Host 'Next: run 02_start_agent.bat'
+        Write-Host 'ContextOS MCP tools are available in the llama.cpp Web UI. 02_start_agent.bat remains optional.'
         exit 0
     } catch {
         Write-Host -NoNewline '.'

@@ -1,12 +1,14 @@
 {
   "name": "context-os",
-  "version": "0.2.0-dev.5",
+  "version": "0.2.0-dev.6",
   "private": true,
-  "description": "Persistent context and memory runtime for long-running local coding agents",
+  "description": "Persistent context, memory, and MCP capability runtime for local coding agents",
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
+    "mcp": "node src/mcp-server.js",
     "test": "node --test",
+    "test:mcp": "node --test test/mcp-server.test.js",
     "test:m4:e2e": "node scripts/m4-e2e.mjs",
     "doctor": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/doctor.ps1",
     "setup": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/setup.ps1"
@@ -14,5 +16,9 @@
   "engines": {
     "node": ">=20"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "4.4.3"
+  }
 }

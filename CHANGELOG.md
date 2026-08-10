@@ -4,6 +4,20 @@
 
 All notable changes to this project will be documented here.
 
+## [0.2.0-dev.6] - 2026-08-10
+
+### Standards-based MCP capability server
+
+- Close the unmerged custom Runtime Chat Gateway PR and keep `main` on the clean dev.5 baseline; no Gateway revert or history rewrite was required.
+- Add a host-independent stdio MCP server using the pinned official TypeScript SDK, with exact llama.cpp `b10295` / MCP `2024-11-05` compatibility coverage.
+- Reuse the existing ToolRunner, MemoryStore, RepoMapper, ToolEvidenceManager, containment, command policy, and artifact recovery path.
+- Advertise six read tools by default and require explicit `trusted-local` mode before mutation/state tools exist on the MCP surface.
+- Add bounded machine-readable resources for repository map, project memory, working state, artifact index, and exact artifact recovery.
+- Return Runtime-derived evidence envelopes; oversized results are externalized instead of being copied back into active model context.
+- Generate separate MCP and llama.cpp host configs during setup; `01_start_server.bat` passes `--mcp-servers-config` without enabling built-in llama.cpp tools, `--agent`, or the browser MCP proxy.
+- Preserve the optional standalone AgentRuntime CLI and all frozen M4/D0-D6 semantics.
+- Add official-client protocol E2E, exact tool/resource, containment, mutation, corruption, evidence, and artifact recovery tests plus bilingual documentation.
+
 ## [0.2.0-dev.5] - 2026-08-10
 
 ### Zero-mutation execution preparation
